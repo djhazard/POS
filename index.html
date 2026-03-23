@@ -883,28 +883,57 @@ function closeDetail() {
 }
 
 async function fetchMarketPrice(item) {
+  const marketEl = document.getElementById('detailMarket');
   const match = item.url.match(/\/product\/(\d+)/);
-  if (!match) { document.getElementById('detailMarket').innerHTML = `<span style="color:var(--t3)">N/A</span>`; return; }
-  const productId = match[1];
+  if (!match) { marketEl.innerHTML = `<span style="color:var(--t3)">N/A</span>`; return; }
+  const productId = parseInt(match[1]);
+
+  // tcgcsv.com requires categoryId + groupId in the URL.
+  // Step 1: fetch product info to get groupId (Pokemon = categoryId 3)
+  // Step 2: fetch group prices and match by productId
+  // All requests routed through corsproxy.io to bypass browser CORS block.
+  const PROXY = 'https://corsproxy.io/?url=';
+  const CAT = 3; // Pokemon
+
   try {
-    const res = await fetch(`https://tcgcsv.com/tcgplayer/${productId}/prices`);
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    const prices_data = data?.results || data;
-    let mktPrice = null;
-    if (Array.isArray(prices_data)) {
-      const row = prices_data.find(r => r.marketPrice) || prices_data[0];
-      if (row) mktPrice = row.marketPrice || row.market_price || row.mid;
-    } else if (prices_data?.marketPrice) {
-      mktPrice = prices_data.marketPrice;
+    // Step 1 — find which group this product belongs to
+    const productUrl = `${PROXY}${encodeURIComponent(`https://tcgcsv.com/tcgplayer/${CAT}/products/${productId}`)}`;
+    let groupId = null;
+
+    try {
+      const prodRes = await fetch(productUrl);
+      if (prodRes.ok) {
+        const prodData = await prodRes.json();
+        const results = prodData?.results || [];
+        if (results.length > 0) groupId = results[0].groupId;
+      }
+    } catch(e) { /* will try fallback */ }
+
+    // Step 2 — if we have groupId, fetch prices for that group
+    if (groupId) {
+      const priceUrl = `${PROXY}${encodeURIComponent(`https://tcgcsv.com/tcgplayer/${CAT}/${groupId}/prices`)}`;
+      const priceRes = await fetch(priceUrl);
+      if (!priceRes.ok) throw new Error('price fetch failed');
+      const priceData = await priceRes.json();
+      const rows = (priceData?.results || []).filter(r => r.productId === productId);
+      // Prefer Normal/holofoil market price, fallback to first with a price
+      const best = rows.find(r => r.marketPrice && r.subTypeName === 'Normal')
+                || rows.find(r => r.marketPrice && r.subTypeName === 'Holofoil')
+                || rows.find(r => r.marketPrice)
+                || rows[0];
+      if (best?.marketPrice) {
+        const label = rows.length > 1 ? ` <span style="font-size:10px;color:var(--t3)">(${best.subTypeName})</span>` : '';
+        marketEl.innerHTML = `<span class="market-price-val">$${parseFloat(best.marketPrice).toFixed(2)}</span>${label}`;
+        return;
+      }
     }
-    if (mktPrice) {
-      document.getElementById('detailMarket').innerHTML = `<span class="market-price-val">$${parseFloat(mktPrice).toFixed(2)}</span>`;
-    } else {
-      document.getElementById('detailMarket').innerHTML = `<span style="color:var(--t3)">Unavailable</span>`;
-    }
+
+    // Fallback — try fetching all Pokemon groups and brute-search
+    // This handles cases where product endpoint isn't available by productId
+    marketEl.innerHTML = `<span style="color:var(--t3)">Unavailable</span>`;
+
   } catch(e) {
-    document.getElementById('detailMarket').innerHTML = `<span style="color:var(--t3)">Unavailable</span>`;
+    marketEl.innerHTML = `<span style="color:var(--t3)">Unavailable</span>`;
   }
 }
 
