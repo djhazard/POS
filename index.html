@@ -882,56 +882,104 @@ function closeDetail() {
   activeDetailId = null;
 }
 
+// Pre-built groupId map from tcgcsv.com/tcgplayer/3/groups
+// Keys are lowercase set name fragments for fuzzy matching
+const TCGCSV_GROUPS = {
+  'evolving skies': 2848, 'scarlet & violet 151': 23237, 'sv: scarlet & violet 151': 23237,
+  'cosmic eclipse': 2534, 'sm - cosmic eclipse': 2534, 'shining legends': 2054,
+  'evolutions': 1842, 'xy - evolutions': 1842, 'crown zenith': 17688,
+  'surging sparks': 23651, 'sv08: surging sparks': 23651,
+  'prismatic evolutions': 23821, 'sv: prismatic evolutions': 23821,
+  'destined rivals': 24269, 'sv10: destined rivals': 24269,
+  'obsidian flames': 23228, 'sv03: obsidian flames': 23228,
+  'paradox rift': 23286, 'sv04: paradox rift': 23286,
+  'paldea evolved': 23120, 'sv02: paldea evolved': 23120,
+  'scarlet & violet base': 22873, 'sv01: scarlet & violet': 22873,
+  'temporal forces': 23381, 'sv05: temporal forces': 23381,
+  'twilight masquerade': 23473, 'sv06: twilight masquerade': 23473,
+  'stellar crown': 23537, 'sv07: stellar crown': 23537,
+  'shrouded fable': 23529, 'brilliant stars': 2948, 'swsh09: brilliant stars': 2948,
+  'lost origin': 3118, 'swsh11: lost origin': 3118,
+  'silver tempest': 3170, 'swsh12: silver tempest': 3170,
+  'fusion strike': 2906, 'swsh08: fusion strike': 2906,
+  'chilling reign': 2807, 'swsh06: chilling reign': 2807,
+  'battle styles': 2765, 'swsh05: battle styles': 2765,
+  'vivid voltage': 2701, 'swsh04: vivid voltage': 2701,
+  'rebel clash': 2626, 'swsh02: rebel clash': 2626,
+  'sword & shield': 2585, 'swsh01': 2585,
+  'hidden fates': 2480, 'celebrations': 2867,
+  'paldean fates': 23353, 'journey together': 24073,
+  'shining fates': 2754, 'astral radiance': 3040,
+  'pokemon go': 3064, 'darkness ablaze': 2675,
+  'sm promos': 1861, 'swsh promos': 2545,
+};
+
+function getGroupId(setName) {
+  if (!setName) return null;
+  const lower = setName.toLowerCase().trim();
+  // exact match first
+  if (TCGCSV_GROUPS[lower]) return TCGCSV_GROUPS[lower];
+  // partial match
+  for (const [key, gid] of Object.entries(TCGCSV_GROUPS)) {
+    if (lower.includes(key) || key.includes(lower)) return gid;
+  }
+  return null;
+}
+
+// Cache prices per groupId to avoid re-fetching
+const priceCache = {};
+
 async function fetchMarketPrice(item) {
   const marketEl = document.getElementById('detailMarket');
   const match = item.url.match(/\/product\/(\d+)/);
   if (!match) { marketEl.innerHTML = `<span style="color:var(--t3)">N/A</span>`; return; }
   const productId = parseInt(match[1]);
 
-  // tcgcsv.com requires categoryId + groupId in the URL.
-  // Step 1: fetch product info to get groupId (Pokemon = categoryId 3)
-  // Step 2: fetch group prices and match by productId
-  // All requests routed through corsproxy.io to bypass browser CORS block.
-  const PROXY = 'https://corsproxy.io/?url=';
-  const CAT = 3; // Pokemon
+  // Try to get groupId from set name first, then fall back to fetching groups
+  let groupId = getGroupId(item.set);
+
+  // If no match in our map, fetch the groups list and try to find it
+  if (!groupId) {
+    try {
+      const groupsRes = await fetch('https://tcgcsv.com/tcgplayer/3/groups');
+      if (groupsRes.ok) {
+        const groupsData = await groupsRes.json();
+        const setLower = (item.set || '').toLowerCase();
+        const found = (groupsData.results || []).find(g =>
+          g.name.toLowerCase().includes(setLower) || setLower.includes(g.name.toLowerCase())
+        );
+        if (found) groupId = found.groupId;
+      }
+    } catch(e) {}
+  }
+
+  if (!groupId) {
+    marketEl.innerHTML = `<span style="color:var(--t3)">Set not found</span>`;
+    return;
+  }
 
   try {
-    // Step 1 — find which group this product belongs to
-    const productUrl = `${PROXY}${encodeURIComponent(`https://tcgcsv.com/tcgplayer/${CAT}/products/${productId}`)}`;
-    let groupId = null;
-
-    try {
-      const prodRes = await fetch(productUrl);
-      if (prodRes.ok) {
-        const prodData = await prodRes.json();
-        const results = prodData?.results || [];
-        if (results.length > 0) groupId = results[0].groupId;
-      }
-    } catch(e) { /* will try fallback */ }
-
-    // Step 2 — if we have groupId, fetch prices for that group
-    if (groupId) {
-      const priceUrl = `${PROXY}${encodeURIComponent(`https://tcgcsv.com/tcgplayer/${CAT}/${groupId}/prices`)}`;
-      const priceRes = await fetch(priceUrl);
-      if (!priceRes.ok) throw new Error('price fetch failed');
-      const priceData = await priceRes.json();
-      const rows = (priceData?.results || []).filter(r => r.productId === productId);
-      // Prefer Normal/holofoil market price, fallback to first with a price
-      const best = rows.find(r => r.marketPrice && r.subTypeName === 'Normal')
-                || rows.find(r => r.marketPrice && r.subTypeName === 'Holofoil')
-                || rows.find(r => r.marketPrice)
-                || rows[0];
-      if (best?.marketPrice) {
-        const label = rows.length > 1 ? ` <span style="font-size:10px;color:var(--t3)">(${best.subTypeName})</span>` : '';
-        marketEl.innerHTML = `<span class="market-price-val">$${parseFloat(best.marketPrice).toFixed(2)}</span>${label}`;
-        return;
-      }
+    // Use cache if available
+    if (!priceCache[groupId]) {
+      const res = await fetch(`https://tcgcsv.com/tcgplayer/3/${groupId}/prices`);
+      if (!res.ok) throw new Error('fetch failed');
+      const data = await res.json();
+      priceCache[groupId] = data.results || [];
     }
 
-    // Fallback — try fetching all Pokemon groups and brute-search
-    // This handles cases where product endpoint isn't available by productId
-    marketEl.innerHTML = `<span style="color:var(--t3)">Unavailable</span>`;
+    const rows = priceCache[groupId].filter(r => r.productId === productId);
+    const best = rows.find(r => r.marketPrice && r.subTypeName === 'Normal')
+              || rows.find(r => r.marketPrice && !r.subTypeName)
+              || rows.find(r => r.marketPrice)
+              || rows[0];
 
+    if (best?.marketPrice) {
+      const label = (rows.length > 1 && best.subTypeName)
+        ? ` <span style="font-size:10px;color:var(--t3)">(${best.subTypeName})</span>` : '';
+      marketEl.innerHTML = `<span class="market-price-val">$${parseFloat(best.marketPrice).toFixed(2)}</span>${label}`;
+    } else {
+      marketEl.innerHTML = `<span style="color:var(--t3)">No price data</span>`;
+    }
   } catch(e) {
     marketEl.innerHTML = `<span style="color:var(--t3)">Unavailable</span>`;
   }
