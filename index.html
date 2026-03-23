@@ -84,24 +84,18 @@ body::before{display:none;}
 
 /* ── BOTTOM NAV ── */
 .bnav{
-  display:flex;
-  overflow-x:auto;
-  -webkit-overflow-scrolling:touch;
-  scrollbar-width:none;
+  display:grid;grid-template-columns:repeat(4,1fr);
   background:var(--s1);border-top:1px solid var(--border);
   flex-shrink:0;position:relative;z-index:10;
   padding-bottom:env(safe-area-inset-bottom,0px);
 }
-.bnav::-webkit-scrollbar{display:none;}
 .bnav-tab{
-  flex:0 0 25%;
   padding:10px 4px 8px;
   text-align:center;
   font-size:9px;letter-spacing:.5px;text-transform:uppercase;
   color:var(--t3);cursor:pointer;transition:all .2s;
   font-family:'DM Mono',monospace;
   display:flex;flex-direction:column;align-items:center;gap:3px;
-  white-space:nowrap;
 }
 .bnav-tab .ico{font-size:20px;line-height:1;}
 .bnav-tab.active{color:var(--gold);}
@@ -305,19 +299,16 @@ body::before{display:none;}
   border-radius:var(--r);padding:12px 14px;
   display:flex;align-items:center;gap:12px;margin-bottom:8px;
 }
-.inv-item-img{
-  width:40px;height:53px;object-fit:cover;
-  border-radius:6px;background:var(--s3);flex-shrink:0;
-}
+.inv-item-img{display:none;}
 .inv-item-info{flex:1;min-width:0;}
 .inv-item-name{font-size:12px;font-weight:600;line-height:1.3;}
 .inv-item-meta{font-size:10px;color:var(--t2);margin-top:2px;}
-.inv-qty-ctrl{display:flex;align-items:center;gap:6px;}
+.inv-qty-ctrl{display:flex;align-items:center;gap:4px;flex-shrink:0;}
 .inv-qty-input{
-  width:52px;background:var(--s3);border:1px solid var(--border);
+  width:44px;background:var(--s3);border:1px solid var(--border);
   border-radius:var(--rsm);color:var(--text);
-  font-family:'DM Mono',monospace;font-size:13px;
-  padding:3px 4px;outline:none;text-align:center;
+  font-family:'DM Mono',monospace;font-size:11px;
+  padding:2px 2px;outline:none;text-align:center;
 }
 .inv-qty-input:focus{border-color:var(--gold);}
 
@@ -380,10 +371,10 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
 }
 .price-row-name{flex:1;font-size:12px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .price-row-input{
-  width:80px;background:var(--s3);border:1px solid var(--border);
+  width:64px;background:var(--s3);border:1px solid var(--border);
   border-radius:6px;color:var(--gold);
-  font-family:'Bebas Neue',sans-serif;font-size:16px;
-  padding:5px 8px;outline:none;text-align:right;flex-shrink:0;
+  font-family:'DM Mono',monospace;font-size:13px;
+  padding:4px 6px;outline:none;text-align:right;flex-shrink:0;
 }
 .price-row-input:focus{border-color:var(--gold);}
 
@@ -532,11 +523,12 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
 /* ── HDR TOGGLE (below header, POS only) ── */
 .hdr-toggle{
   background:var(--s1);
-  padding:8px 14px;
+  padding:8px 14px 10px;
   border-bottom:1px solid var(--border);
   flex-shrink:0;z-index:9;
 }
-.hdr-toggle .toggle-bar{margin-bottom:0;}
+.hdr-toggle .toggle-bar{margin-bottom:8px;}
+.hdr-toggle .search-wrap input{background:var(--s2);}
 
 /* ── POS STICKY HEADER ── */
 .pos-sticky{
@@ -567,13 +559,17 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
   </div>
 </div>
 
-<!-- TOGGLE BAR (sticky, outside screens) -->
+<!-- TOGGLE + SEARCH (sticky, outside screens) -->
 <div class="hdr-toggle" id="hdrToggle">
   <div class="toggle-bar">
     <div class="tog active" data-filter="all" onclick="setFilter('all')">All</div>
     <div class="tog" data-filter="Sealed" onclick="setFilter('Sealed')">Sealed</div>
     <div class="tog" data-filter="Graded" onclick="setFilter('Graded')">Graded</div>
     <div class="tog" data-filter="Singles" onclick="setFilter('Singles')">Singles</div>
+  </div>
+  <div class="search-wrap" style="margin-bottom:0">
+    <span class="search-ico">⌕</span>
+    <input type="text" id="posSearch" placeholder="Search by name, set, short name…" oninput="renderPOS()">
   </div>
 </div>
 
@@ -582,12 +578,6 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
 
   <!-- ══ POS ══ -->
   <div class="screen active" id="screen-pos">
-    <div class="pos-sticky">
-    <div class="search-wrap">
-      <span class="search-ico">⌕</span>
-      <input type="text" id="posSearch" placeholder="Search by name, set, short name…" oninput="renderPOS()">
-    </div>
-    </div><!-- end pos-sticky -->
     <div class="prod-grid" id="posGrid"></div>
   </div>
 
@@ -598,13 +588,7 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
 
   <!-- ══ INVENTORY ══ -->
   <div class="screen" id="screen-inventory">
-    <div class="inv-stats">
-      <div class="stat-box"><div class="stat-lbl">SKUs</div><div class="stat-val" id="statSkus">0</div></div>
-      <div class="stat-box"><div class="stat-lbl">Units</div><div class="stat-val" id="statUnits">0</div></div>
-      <div class="stat-box"><div class="stat-lbl">Sales</div><div class="stat-val" id="statSalesToday">0</div></div>
-      <div class="stat-box"><div class="stat-lbl">Revenue</div><div class="stat-val" id="statRevToday">$0</div></div>
-    </div>
-    <div class="sec-label">Stock</div>
+    <div class="sec-label" style="margin-top:0">Stock</div>
     <div class="search-wrap">
       <span class="search-ico">⌕</span>
       <input type="text" id="invSearch" placeholder="Search inventory…" oninput="renderInventory()">
@@ -612,14 +596,16 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
     <div id="invList"></div>
   </div>
 
-  <!-- ══ SALES LOG ══ -->
-  <div class="screen" id="screen-log">
-    <div class="sec-label" style="margin-top:0">Transactions</div>
-    <div id="logList"></div>
-  </div>
-
   <!-- ══ SETUP ══ -->
   <div class="screen" id="screen-setup">
+
+    <!-- Sales Stats -->
+    <div class="inv-stats" style="margin-top:0">
+      <div class="stat-box"><div class="stat-lbl">SKUs</div><div class="stat-val" id="statSkus">0</div></div>
+      <div class="stat-box"><div class="stat-lbl">Units</div><div class="stat-val" id="statUnits">0</div></div>
+      <div class="stat-box" style="cursor:pointer" onclick="openLogModal()"><div class="stat-lbl">Sales ↗</div><div class="stat-val" id="statSalesToday">0</div></div>
+      <div class="stat-box" style="cursor:pointer" onclick="openLogModal()"><div class="stat-lbl">Revenue ↗</div><div class="stat-val" id="statRevToday">$0</div></div>
+    </div>
 
     <!-- Import -->
     <div class="setup-card">
@@ -678,7 +664,6 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
   <div class="bnav-tab active" data-tab="pos" onclick="switchTab('pos')"><span class="ico">🏪</span>POS</div>
   <div class="bnav-tab" data-tab="cart" onclick="switchTab('cart')"><span class="ico">🛒</span>Cart</div>
   <div class="bnav-tab" data-tab="inventory" onclick="switchTab('inventory')"><span class="ico">📦</span>Inventory</div>
-  <div class="bnav-tab" data-tab="log" onclick="switchTab('log')"><span class="ico">🧾</span>Log</div>
   <div class="bnav-tab" data-tab="setup" onclick="switchTab('setup')"><span class="ico">⚙️</span>Setup</div>
 </div>
 
@@ -720,6 +705,16 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
 <div class="overlay" id="checkoutOverlay">
   <div class="modal" id="checkoutModal">
     <div id="checkoutContent"></div>
+  </div>
+</div>
+
+<!-- ── SALES LOG MODAL ── -->
+<div class="overlay" id="logOverlay">
+  <div class="modal">
+    <button onclick="document.getElementById('logOverlay').classList.remove('open')" style="position:absolute;top:16px;right:16px;background:var(--s3);border:1px solid var(--border);border-radius:50%;width:32px;height:32px;color:var(--t2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;">✕</button>
+    <div class="modal-title">Sales Log</div>
+    <div class="modal-sub">Tap a transaction to delete it</div>
+    <div id="logList"></div>
   </div>
 </div>
 
@@ -821,10 +816,14 @@ function switchTab(tab) {
   // Show toggle only on POS
   const tgl = document.getElementById('hdrToggle');
   if (tgl) tgl.style.display = tab === 'pos' ? 'block' : 'none';
-  if (tab === 'inventory') { renderInventory(); updateStats(); }
-  if (tab === 'log') renderLog();
+  if (tab === 'inventory') { renderInventory(); }
   if (tab === 'cart') renderCart();
-  if (tab === 'setup') renderSetup();
+  if (tab === 'setup') { renderSetup(); updateStats(); }
+}
+
+function openLogModal() {
+  renderLog();
+  document.getElementById('logOverlay').classList.add('open');
 }
 
 // ══════════════════════════════════════════
@@ -1125,16 +1124,17 @@ function renderCart() {
             <button class="qty-btn" onclick="changeCartQty(${idx},1)">+</button>
             <span style="font-size:10px;color:var(--t3);margin-left:2px;margin-right:6px">/${item.qty}</span>
             <span style="font-size:10px;color:var(--t3);font-family:'DM Mono'">disc:</span>
-            <input class="disc-input" type="number" min="0" placeholder="0"
+            <input class="disc-input" id="disc-inp-${idx}" type="number" min="0" placeholder="0"
               value="${c.discountVal}"
-              oninput="setItemDisc(${idx},'val',this.value)">
+              oninput="setItemDisc(${idx},'val',this.value)"
+              onblur="setItemDiscBlur(${idx})">
             <button class="disc-type-btn ${c.discountType==='$'?'active':''}" onclick="setItemDisc(${idx},'type','$')">$</button>
             <button class="disc-type-btn ${c.discountType==='%'?'active':''}" onclick="setItemDisc(${idx},'type','%')">%</button>
           </div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
           <button class="remove-btn" onclick="removeCartItem(${idx})">✕</button>
-          <div class="cart-row-line">${fmtMoney(lineTotal)}</div>
+          <div class="cart-row-line" id="cart-line-${idx}">${fmtMoney(lineTotal)}</div>
         </div>
       </div>`;
   });
@@ -1171,9 +1171,27 @@ function renderCart() {
 }
 
 function setItemDisc(idx, key, val) {
-  if (key === 'val') cart[idx].discountVal = val;
-  if (key === 'type') cart[idx].discountType = val;
+  if (key === 'val') {
+    cart[idx].discountVal = val;
+    // Update line total display without full re-render
+    const p = parseFloat(prices[cart[idx].id] || 0);
+    let lineTotal = p * cart[idx].qty;
+    const d = parseFloat(val) || 0;
+    lineTotal -= cart[idx].discountType === '%' ? lineTotal * d / 100 : d;
+    lineTotal = Math.max(0, lineTotal);
+    const lineEl = document.getElementById('cart-line-' + idx);
+    if (lineEl) lineEl.textContent = fmtMoney(lineTotal);
+  }
+  if (key === 'type') { cart[idx].discountType = val; renderCart(); }
+}
+function setItemDiscBlur(idx) {
+  // Only full re-render on blur so keyboard stays up while typing
   renderCart();
+  // Restore focus hint
+  setTimeout(() => {
+    const inp = document.getElementById('disc-inp-' + idx);
+    // don't refocus, just recalc
+  }, 50);
 }
 
 function setCartDisc(key, val) {
@@ -1431,14 +1449,14 @@ function renderInventory(filter) {
       <div class="inv-item">
         ${imgSrc ? `<img class="inv-item-img" src="${imgSrc}" onerror="this.style.display='none'">` : `<div class="inv-item-img" style="display:flex;align-items:center;justify-content:center;font-size:20px">📦</div>`}
         <div class="inv-item-info">
-          <div class="inv-item-name">${item.name}</div>
+          <div class="inv-item-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.name}</div>
           <div class="inv-item-meta">${[item.type, item.set, item.notes].filter(Boolean).join(' · ')}</div>
         </div>
         <div class="inv-qty-ctrl">
-          <button class="qty-btn" onclick="adjustInvQty('${item.id}',-1)">−</button>
+          <button style="width:20px;height:20px;border-radius:4px;border:1px solid var(--border);background:var(--s3);color:var(--text);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" onclick="adjustInvQty('${item.id}',-1)">−</button>
           <input class="inv-qty-input" type="number" value="${item.qty}" min="0"
             onchange="setInvQty('${item.id}',this.value)">
-          <button class="qty-btn" onclick="adjustInvQty('${item.id}',1)">+</button>
+          <button style="width:20px;height:20px;border-radius:4px;border:1px solid var(--border);background:var(--s3);color:var(--text);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" onclick="adjustInvQty('${item.id}',1)">+</button>
         </div>
       </div>`;
   }).join('');
