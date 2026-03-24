@@ -1009,7 +1009,7 @@ function openDetail(id) {
     // Alt Price row
     if (marketLbl) marketLbl.textContent = 'Alt Price';
     marketEl.innerHTML = item.alt_url
-      ? `<a class="detail-link" href="${item.alt_url}" onclick="openAltPopup('${id}');return false;">View on Alt.xyz →</a>`
+      ? `<span class="check-alt-link" onclick="openAltPopup('${id}')">View on Alt.xyz →</span>`
       : `<span style="color:var(--t3)">No alt URL</span>`;
     marketRow.style.display = 'flex';
     // Product link row → not shown for graded (alt_url covers it)
