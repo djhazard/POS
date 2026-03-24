@@ -533,6 +533,17 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
 .hdr-toggle .toggle-bar{margin-bottom:8px;}
 .hdr-toggle .search-wrap input{background:var(--s2);}
 
+/* ── SORT TOGGLE ── */
+.sort-toggle{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+.sort-btn{
+  flex:1;padding:7px 6px;border-radius:var(--rsm);
+  border:1px solid var(--border);background:var(--s2);
+  font-family:'DM Mono',monospace;font-size:10px;
+  color:var(--t2);cursor:pointer;transition:all .2s;
+  text-align:center;letter-spacing:.3px;
+}
+.sort-btn.active{background:rgba(245,200,66,.12);color:var(--gold);border-color:rgba(245,200,66,.3);}
+
 /* ── POS STICKY HEADER ── */
 .pos-sticky{
   position:sticky;top:0;z-index:20;
@@ -620,10 +631,21 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
       <div id="importMsg" style="margin-top:8px;font-size:12px;color:var(--t2);"></div>
     </div>
 
+    <!-- Sort Order -->
+    <div class="setup-card">
+      <div class="setup-card-title">↕ Display Order</div>
+      <div class="setup-card-desc">Controls the order items appear on the POS, Inventory, and price list.</div>
+      <div class="sort-toggle">
+        <button class="sort-btn" id="sort-loaded" onclick="setSort('loaded')">As Loaded</button>
+        <button class="sort-btn" id="sort-alpha" onclick="setSort('alpha')">A → Z</button>
+        <button class="sort-btn" id="sort-type" onclick="setSort('type')">By Type</button>
+      </div>
+    </div>
+
     <!-- Prices -->
     <div class="setup-card">
-      <div class="setup-card-title">💰 Set Sell Prices</div>
-      <div class="setup-card-desc">Enter your sell price for each item. These appear on the POS grid.</div>
+      <div class="setup-card-title">💰 Set Sticker Prices</div>
+      <div class="setup-card-desc">Enter your sticker prices for the POS grid here.</div>
       <div class="price-list" id="priceList"></div>
       <button class="btn btn-gold" style="margin-top:12px" onclick="savePrices()">Save Prices</button>
     </div>
@@ -690,12 +712,16 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
       <span class="detail-val" id="detailPrice" style="font-family:'Bebas Neue';font-size:20px;color:var(--gold)"></span>
     </div>
     <div class="detail-row" id="detailMarketRow">
-      <span class="detail-lbl">Market Price</span>
+      <span class="detail-lbl" id="detailMarketLbl">Market Price</span>
       <span class="detail-val" id="detailMarket"></span>
     </div>
-    <div class="detail-row">
-      <span class="detail-lbl">Product Link</span>
+    <div class="detail-row" id="detailLinkRow">
+      <span class="detail-lbl" id="detailLinkLbl">Product Link</span>
       <span class="detail-val"><a id="detailLink" class="detail-link" href="#" target="_blank">View →</a></span>
+    </div>
+    <div class="detail-row" id="detailCardLadderRow" style="display:none">
+      <span class="detail-lbl">Card Ladder Price</span>
+      <span class="detail-val"><span class="check-alt-link" id="detailCardLadderLink" onclick="openCardLadderPopup()">View on Card Ladder →</span></span>
     </div>
     <div style="margin-top:14px;display:flex;gap:8px;">
       <button class="btn btn-gold" onclick="addToCartFromDetail()">Add to Cart</button>
@@ -746,6 +772,29 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
   </div>
 </div>
 
+<!-- CARD LADDER POPUP -->
+<div class="overlay" id="cardLadderOverlay">
+  <div class="modal">
+    <div class="modal-title">Card Ladder</div>
+    <div class="modal-sub" id="cardLadderModalSub"></div>
+    <div style="background:var(--s3);border-radius:var(--r);padding:14px;text-align:center;margin-bottom:14px;">
+      <div style="font-size:13px;color:var(--t2);margin-bottom:8px;">Population & pricing data on Card Ladder</div>
+      <a id="cardLadderLink" href="#" target="_blank" class="btn btn-gold" style="display:inline-block;text-decoration:none;padding:12px 24px;border-radius:var(--r);font-family:'Bebas Neue';font-size:16px;letter-spacing:1px;color:#000;">View on Card Ladder →</a>
+    </div>
+    <button class="btn btn-ghost" onclick="document.getElementById('cardLadderOverlay').classList.remove('open')">Close</button>
+  </div>
+</div>
+
+<!-- ── IMAGE LIGHTBOX ── -->
+<div class="overlay" id="imgModal" style="align-items:center;justify-content:center;background:rgba(0,0,0,.92)" ontouchstart="handleImgSwipe(event)">
+  <button onclick="closeImgModal()" style="position:fixed;top:20px;right:20px;background:var(--s3);border:1px solid var(--border);border-radius:50%;width:36px;height:36px;color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:300;">✕</button>
+  <div style="max-width:90vw;max-height:85vh;text-align:center;padding:0 16px">
+    <img id="imgModalImg" src="" alt="" style="max-width:100%;max-height:75vh;object-fit:contain;border-radius:12px;display:block;margin:0 auto">
+    <div id="imgModalName" style="margin-top:12px;font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;color:var(--text)"></div>
+    <div id="imgModalMeta" style="font-size:11px;color:var(--t2);margin-top:4px"></div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -755,6 +804,7 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
 // STATE
 // ══════════════════════════════════════════
 let inventory = JSON.parse(localStorage.getItem('ktcg_inv') || '[]');
+let sortOrder = localStorage.getItem('ktcg_sort') || 'loaded';
 let prices    = JSON.parse(localStorage.getItem('ktcg_prices') || '{}');
 let sales     = JSON.parse(localStorage.getItem('ktcg_sales') || '[]');
 let qrCodes   = JSON.parse(localStorage.getItem('ktcg_qr') || '{}');
@@ -783,6 +833,7 @@ window.addEventListener('DOMContentLoaded', () => {
   renderQRPreviews();
   renderGradedPhotoPreviews();
   loadSampleIfEmpty();
+  initSortUI();
 });
 
 function loadSampleIfEmpty() {
@@ -799,13 +850,48 @@ function loadSampleIfEmpty() {
     {id:'ev563307',name:'Sea & Sky Premium Collection',set:'Crown Zenith',short:'Sea & Sky Premium Collection',type:'Sealed',qty:60,url:'https://www.tcgplayer.com/product/563307/Pokemon-Crown%20Zenith-Sea%20and%20Sky%20Premium%20Collection',img:'https://tcgplayer-cdn.tcgplayer.com/product/563307_in_1000x1000.jpg',notes:''},
     {id:'ev565606',name:'Surging Sparks Booster Box',set:'Surging Sparks',short:'Surging Sparks Booster Box',type:'Sealed',qty:2,url:'https://www.tcgplayer.com/product/565606/pokemon-sv08-surging-sparks-surging-sparks-booster-box',img:'https://tcgplayer-cdn.tcgplayer.com/product/565606_in_1000x1000.jpg',notes:''},
     {id:'ev593294',name:'Prismatic Evolutions Booster Pack',set:'Prismatic Evolutions',short:'Prismatic Evolutions Booster Pack',type:'Sealed',qty:3000,url:'https://www.tcgplayer.com/product/593294/Pokemon-SV%20Prismatic%20Evolutions-Prismatic%20Evolutions%20Booster%20Pack',img:'https://tcgplayer-cdn.tcgplayer.com/product/593294_in_1000x1000.jpg',notes:''},
-    {id:'gr893d61',name:'2018 Pokemon Sun and Moon Promo Munch A Retrospective Japanese Psyduck #286SMP',set:'',short:'Psyduck Munch PSA 8',type:'Graded',qty:1,url:'https://alt.xyz/itm/893d61c2-3b8b-4eca-be18-40f4b36d08b6/external',img:'https://alt-images.b-cdn.net/external/ebay/live/406771622499_0.jpg?height=531&width=324&quality=50',notes:'PSA 8'},
-    {id:'gr774c4e',name:'2023 Pokemon Scarlet and Violet Black Star Promo Pokemon X Van Gogh Pikachu With Grey Felt Hat #085',set:'',short:'Pikachu Grey Hat PSA 9',type:'Graded',qty:1,url:'https://alt.xyz/itm/774c4e01-5934-43be-b27f-12ff5ce0516e/external',img:'https://alt-images.b-cdn.net/external/ebay/live/306817474273_0.jpg?height=531&width=324&quality=50',notes:'PSA 9'},
+    {id:'gr893d61',name:'2018 Pokemon Sun and Moon Promo Munch A Retrospective Japanese Psyduck #286SMP',set:'',short:'Psyduck Munch PSA 8',type:'Graded',qty:1,url:'',alt_url:'https://alt.xyz/itm/893d61c2-3b8b-4eca-be18-40f4b36d08b6/external',cardladder_url:'',img:'https://alt-images.b-cdn.net/external/ebay/live/406771622499_0.jpg?height=531&width=324&quality=50',notes:'PSA 8'},
+    {id:'gr774c4e',name:'2023 Pokemon Scarlet and Violet Black Star Promo Pokemon X Van Gogh Pikachu With Grey Felt Hat #085',set:'',short:'Pikachu Grey Hat PSA 9',type:'Graded',qty:1,url:'',alt_url:'https://alt.xyz/itm/774c4e01-5934-43be-b27f-12ff5ce0516e/external',cardladder_url:'',img:'https://alt-images.b-cdn.net/external/ebay/live/306817474273_0.jpg?height=531&width=324&quality=50',notes:'PSA 9'},
   ];
   save();
   renderPOS();
   renderInventory();
   renderSetup();
+}
+
+// ══════════════════════════════════════════
+// SORT
+// ══════════════════════════════════════════
+function setSort(order) {
+  sortOrder = order;
+  localStorage.setItem('ktcg_sort', order);
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('sort-' + order);
+  if (btn) btn.classList.add('active');
+  renderPOS();
+  renderInventory();
+  renderPriceList();
+}
+
+function applySortOrder(items) {
+  if (sortOrder === 'alpha') {
+    return [...items].sort((a,b) => (a.short||a.name).localeCompare(b.short||b.name));
+  }
+  if (sortOrder === 'type') {
+    const typeOrder = {Sealed:0, Singles:1, Graded:2};
+    return [...items].sort((a,b) => {
+      const td = (typeOrder[a.type]??3) - (typeOrder[b.type]??3);
+      if (td !== 0) return td;
+      return (a.short||a.name).localeCompare(b.short||b.name);
+    });
+  }
+  return items; // as loaded
+}
+
+function initSortUI() {
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('sort-' + sortOrder);
+  if (btn) btn.classList.add('active');
 }
 
 // ══════════════════════════════════════════
@@ -821,7 +907,7 @@ function switchTab(tab) {
   if (tgl) tgl.style.display = tab === 'pos' ? 'block' : 'none';
   if (tab === 'inventory') { renderInventory(); }
   if (tab === 'cart') renderCart();
-  if (tab === 'setup') { renderSetup(); updateStats(); }
+  if (tab === 'setup') { renderSetup(); updateStats(); initSortUI(); }
 }
 
 function openLogModal() {
@@ -856,6 +942,8 @@ function renderPOS() {
     return;
   }
 
+  items = applySortOrder(items);
+
   // Group by type
   const groups = {};
   items.forEach(i => { if (!groups[i.type]) groups[i.type] = []; groups[i.type].push(i); });
@@ -876,7 +964,7 @@ function renderPOS() {
             <span class="type-badge ${item.type.toLowerCase()}">${item.type}</span>
           </div>
           <div class="prod-info">
-            <div class="prod-name">${item.name}</div>
+            <div class="prod-name">${item.short || item.name}</div>
             ${price ? `<div class="prod-price">${fmtMoney(parseFloat(price))}</div>` : `<div class="prod-price unset">No price set</div>`}
             <button class="add-cart-btn ${inCart?'active-cart':''}" onclick="quickAddCart('${item.id}')">
               ${inCart ? `✓ In Cart (${inCart.qty})` : '+ Add to Cart'}
@@ -910,15 +998,37 @@ function openDetail(id) {
   const marketEl = document.getElementById('detailMarket');
   const linkEl = document.getElementById('detailLink');
 
-  linkEl.href = item.url || '#';
-  linkEl.textContent = item.type === 'Graded' ? 'View on Alt.xyz →' : 'View on TCGPlayer →';
+  // link set per-type below
+
+  const marketLbl = document.getElementById('detailMarketLbl');
+  const linkLbl = document.getElementById('detailLinkLbl');
+  const cardLadderRow = document.getElementById('detailCardLadderRow');
+  const cardLadderLink = document.getElementById('detailCardLadderLink');
 
   if (item.type === 'Graded') {
-    marketEl.innerHTML = `<span class="check-alt-link" onclick="openAltPopup('${id}')">Check Alt Price</span>`;
+    // Alt Price row
+    if (marketLbl) marketLbl.textContent = 'Alt Price';
+    marketEl.innerHTML = item.alt_url
+      ? `<a class="detail-link" href="${item.alt_url}" onclick="openAltPopup('${id}');return false;">View on Alt.xyz →</a>`
+      : `<span style="color:var(--t3)">No alt URL</span>`;
     marketRow.style.display = 'flex';
+    // Product link row → not shown for graded (alt_url covers it)
+    document.getElementById('detailLinkRow').style.display = 'none';
+    // Card Ladder row
+    if (item.cardladder_url) {
+      cardLadderRow.style.display = 'flex';
+      cardLadderLink.onclick = () => openCardLadderPopup(id);
+    } else {
+      cardLadderRow.style.display = 'none';
+    }
   } else {
+    if (marketLbl) marketLbl.textContent = 'Market Price';
     marketEl.innerHTML = `<span class="market-loading">Loading…</span>`;
     marketRow.style.display = 'flex';
+    document.getElementById('detailLinkRow').style.display = 'flex';
+    linkEl.href = item.url || '#';
+    linkEl.textContent = 'View on TCGPlayer →';
+    cardLadderRow.style.display = 'none';
     fetchMarketPrice(item);
   }
 
@@ -1036,6 +1146,14 @@ async function fetchMarketPrice(item) {
   } catch(e) {
     marketEl.innerHTML = `<span style="color:var(--t3)">Unavailable</span>`;
   }
+}
+
+function openCardLadderPopup(id) {
+  const item = inventory.find(i => i.id === id);
+  if (!item || !item.cardladder_url) return;
+  document.getElementById('cardLadderModalSub').textContent = item.short || item.name;
+  document.getElementById('cardLadderLink').href = item.cardladder_url;
+  document.getElementById('cardLadderOverlay').classList.add('open');
 }
 
 function openAltPopup(id) {
@@ -1161,15 +1279,16 @@ function renderCart() {
       <div style="font-family:'DM Mono';font-size:10px;color:var(--t3);letter-spacing:1px;margin-bottom:8px;text-transform:uppercase;">Cart Discount</div>
       <div class="cart-disc-row">
         <span class="cart-disc-label">Amount:</span>
-        <input class="disc-input" type="number" min="0" placeholder="0"
+        <input class="disc-input" id="cart-disc-input" type="number" min="0" placeholder="0"
           value="${cartDisc.val}"
-          oninput="setCartDisc('val',this.value)">
+          oninput="setCartDisc('val',this.value)"
+          onblur="renderCart()">
         <button class="disc-type-btn ${cartDisc.type==='$'?'active':''}" onclick="setCartDisc('type','$')">$</button>
         <button class="disc-type-btn ${cartDisc.type==='%'?'active':''}" onclick="setCartDisc('type','%')">%</button>
       </div>
-      <div class="sum-line"><span>Subtotal</span><span>${fmtMoney(sub)}</span></div>
-      ${cartDiscAmt > 0 ? `<div class="sum-line"><span>Discount</span><span style="color:var(--green)">-${fmtMoney(cartDiscAmt)}</span></div>` : ''}
-      <div class="sum-line total"><span>Total</span><span>${fmtMoney(grandTotal)}</span></div>
+      <div class="sum-line" id="cart-subtotal-row"><span>Subtotal</span><span id="cart-subtotal">${fmtMoney(sub)}</span></div>
+      <div class="sum-line" id="cart-disc-line" style="${cartDiscAmt > 0 ? '' : 'display:none'}"><span>Discount</span><span style="color:var(--green)">-${fmtMoney(cartDiscAmt)}</span></div>
+      <div class="sum-line total"><span>Total</span><span id="cart-grand-total">${fmtMoney(grandTotal)}</span></div>
     </div>
     <button class="btn btn-gold" onclick="openCheckout()">Checkout →</button>
     <button class="btn btn-ghost" style="margin-top:8px" onclick="clearCart()">Clear Cart</button>`;
@@ -1203,7 +1322,37 @@ function setCartDisc(key, val) {
   const d = JSON.parse(localStorage.getItem('ktcg_cartdisc') || '{"val":"","type":"$"}');
   d[key] = val;
   localStorage.setItem('ktcg_cartdisc', JSON.stringify(d));
-  renderCart();
+  if (key === 'type') {
+    renderCart(); // button tap — OK to re-render
+  } else {
+    // Just update totals in place so keyboard stays open
+    updateCartTotals();
+  }
+}
+
+function updateCartTotals() {
+  const cartDisc = JSON.parse(localStorage.getItem('ktcg_cartdisc') || '{"val":"","type":"$"}');
+  let sub = getCartTotal();
+  let cartDiscAmt = 0;
+  if (cartDisc.val) {
+    const d = parseFloat(cartDisc.val) || 0;
+    cartDiscAmt = cartDisc.type === '%' ? sub * d / 100 : d;
+  }
+  const grandTotal = Math.max(0, sub - cartDiscAmt);
+  const subEl = document.getElementById('cart-subtotal');
+  const discEl = document.getElementById('cart-disc-line');
+  const totEl = document.getElementById('cart-grand-total');
+  if (subEl) subEl.textContent = fmtMoney(sub);
+  if (totEl) totEl.textContent = fmtMoney(grandTotal);
+  if (discEl) {
+    if (cartDiscAmt > 0) {
+      discEl.style.display = 'flex';
+      const span = discEl.querySelector('span:last-child');
+      if (span) span.textContent = '-' + fmtMoney(cartDiscAmt);
+    } else {
+      discEl.style.display = 'none';
+    }
+  }
 }
 
 function changeCartQty(idx, delta) {
@@ -1443,7 +1592,8 @@ function closeCheckout() {
 // ══════════════════════════════════════════
 function renderInventory(filter) {
   const q = (filter !== undefined ? filter : (document.getElementById('invSearch')?.value || '')).toLowerCase();
-  const items = inventory.filter(i => !q || i.name.toLowerCase().includes(q) || (i.short||'').toLowerCase().includes(q));
+  let items = inventory.filter(i => !q || i.name.toLowerCase().includes(q) || (i.short||'').toLowerCase().includes(q));
+  items = applySortOrder(items);
   const el = document.getElementById('invList');
   if (!el) return;
   if (items.length === 0) { el.innerHTML = `<div class="empty"><div class="empty-ico">📦</div><p>No items found.</p></div>`; return; }
@@ -1452,9 +1602,9 @@ function renderInventory(filter) {
     const imgSrc = gradedPhotos[item.id] || item.img || '';
     return `
       <div class="inv-item">
-        ${imgSrc ? `<img class="inv-item-img" src="${imgSrc}" onerror="this.style.display='none'">` : `<div class="inv-item-img" style="display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--s3);border-radius:6px">📦</div>`}
+        ${imgSrc ? `<img class="inv-item-img" src="${imgSrc}" onclick="openImgModal('${item.id}')" style="cursor:pointer" onerror="this.style.display='none'">` : `<div class="inv-item-img" onclick="openImgModal('${item.id}')" style="display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--s3);border-radius:6px;cursor:pointer">📦</div>`}
         <div class="inv-item-info">
-          <div class="inv-item-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.name}</div>
+          <div class="inv-item-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer" onclick="openImgModal('${item.id}')">${item.short || item.name}</div>
           <div class="inv-item-meta">${[item.type, item.set, item.notes].filter(Boolean).join(' · ')}</div>
         </div>
         <div class="inv-qty-ctrl">
@@ -1564,7 +1714,8 @@ function renderSetup() {
 function renderPriceList() {
   const el = document.getElementById('priceList');
   if (!el || inventory.length === 0) { if(el) el.innerHTML = `<div style="font-size:12px;color:var(--t3)">Import inventory first.</div>`; return; }
-  el.innerHTML = inventory.map(item => `
+  const sortedInv = applySortOrder(inventory);
+  el.innerHTML = sortedInv.map(item => `
     <div class="price-row">
       <div class="price-row-name">${item.short || item.name}</div>
       <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
@@ -1685,6 +1836,8 @@ function importXLSX(event) {
           qty: parseInt(r[col('quantity')]) || 0,
           url: urlRaw,
           img: String(r[col('image_url')] || '').trim(),
+          alt_url: String(r[col('alt_url')] || '').trim(),
+          cardladder_url: String(r[col('cardladder_url')] || '').trim(),
           notes: String(r[col('notes')] || '').trim(),
         });
       }
@@ -1723,6 +1876,28 @@ function resetAll() {
   showToast('All data reset');
 }
 
+
+// ── Image lightbox ──
+function openImgModal(id) {
+  const item = inventory.find(i => i.id === id);
+  if (!item) return;
+  const imgSrc = gradedPhotos[id] || item.img || '';
+  document.getElementById('imgModalImg').src = imgSrc;
+  document.getElementById('imgModalName').textContent = item.short || item.name;
+  document.getElementById('imgModalMeta').textContent = [item.type, item.set, item.notes].filter(Boolean).join(' · ');
+  document.getElementById('imgModal').classList.add('open');
+}
+function closeImgModal() {
+  document.getElementById('imgModal').classList.remove('open');
+}
+let imgSwipeStartY = 0;
+function handleImgSwipe(e) {
+  imgSwipeStartY = e.touches[0].clientY;
+  document.getElementById('imgModal').addEventListener('touchend', function handler(e) {
+    if (Math.abs(e.changedTouches[0].clientY - imgSwipeStartY) > 80) closeImgModal();
+    document.getElementById('imgModal').removeEventListener('touchend', handler);
+  });
+}
 
 // Swipe down to close detail
 let swipeStartY = 0;
