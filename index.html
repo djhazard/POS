@@ -287,13 +287,13 @@ body::before{display:none;}
 .btn-sm{padding:10px 14px;font-size:14px;width:auto;}
 
 /* ── INVENTORY SCREEN ── */
-.inv-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;}
+.inv-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:12px;}
 .stat-box{
   background:var(--s1);border:1px solid var(--border);
-  border-radius:var(--r);padding:10px 8px;
+  border-radius:var(--r);padding:8px 5px;
 }
-.stat-lbl{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:3px;}
-.stat-val{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);}
+.stat-lbl{font-family:'DM Mono',monospace;font-size:7px;letter-spacing:.3px;text-transform:uppercase;color:var(--t3);margin-bottom:2px;}
+.stat-val{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--gold);line-height:1.1;}
 .inv-item{
   background:var(--s1);border:1px solid var(--border);
   border-radius:var(--r);padding:12px 14px;
@@ -533,6 +533,15 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
 .hdr-toggle .toggle-bar{margin-bottom:8px;}
 .hdr-toggle .search-wrap input{background:var(--s2);}
 
+/* ── POS ACTIVE TOGGLE ── */
+.pos-toggle{display:flex;align-items:center;gap:0;flex-shrink:0;margin-right:6px;}
+.pos-toggle input[type=checkbox]{
+  width:16px !important;height:16px !important;
+  accent-color:var(--gold);cursor:pointer;
+  padding:0 !important;margin:0;flex-shrink:0;
+}
+.pos-toggle-lbl{font-family:'DM Mono',monospace;font-size:8px;color:var(--t3);letter-spacing:.3px;text-align:center;margin-top:2px;display:block;}
+
 /* ── SORT TOGGLE ── */
 .sort-toggle{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
 .sort-btn{
@@ -619,6 +628,7 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
       <div class="stat-box"><div class="stat-lbl">Units</div><div class="stat-val" id="statUnits">0</div></div>
       <div class="stat-box" style="cursor:pointer" onclick="openLogModal()"><div class="stat-lbl">Sales ↗</div><div class="stat-val" id="statSalesToday">0</div></div>
       <div class="stat-box" style="cursor:pointer" onclick="openLogModal()"><div class="stat-lbl">Revenue ↗</div><div class="stat-val" id="statRevToday">$0</div></div>
+      <div class="stat-box"><div class="stat-lbl">Inv $</div><div class="stat-val" id="statInvVal"><span style="font-size:10px;color:var(--t3)">…</span></div></div>
     </div>
 
     <!-- Import -->
@@ -805,6 +815,8 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
 // ══════════════════════════════════════════
 let inventory = JSON.parse(localStorage.getItem('ktcg_inv') || '[]');
 let sortOrder = localStorage.getItem('ktcg_sort') || 'loaded';
+let marketPriceStore = JSON.parse(localStorage.getItem('ktcg_mktprices') || '{}');
+let posActive = JSON.parse(localStorage.getItem('ktcg_posactive') || '{}');
 let prices    = JSON.parse(localStorage.getItem('ktcg_prices') || '{}');
 let sales     = JSON.parse(localStorage.getItem('ktcg_sales') || '[]');
 let qrCodes   = JSON.parse(localStorage.getItem('ktcg_qr') || '{}');
@@ -859,9 +871,95 @@ function loadSampleIfEmpty() {
   renderSetup();
 }
 
+
+// ══════════════════════════════════════════
+// BATCH MARKET PRICE FETCH (for Inv $ stat)
+// ══════════════════════════════════════════
+async function batchFetchMarketPrices() {
+  const el = document.getElementById('statInvVal');
+  if (el) el.innerHTML = '<span style="font-size:10px;color:var(--t3)">fetching…</span>';
+
+  const sealedSingles = inventory.filter(i => i.type !== 'Graded' && i.url);
+  // Collect unique groupIds needed
+  const groupIds = new Set();
+  const itemGroupMap = {}; // itemId → groupId
+
+  for (const item of sealedSingles) {
+    const match = item.url.match(/\/product\/(\d+)/);
+    if (!match) continue;
+    const gid = getGroupId(item.set);
+    if (gid) { groupIds.add(gid); itemGroupMap[item.id] = { gid, pid: parseInt(match[1]) }; }
+  }
+
+  // Fetch each unique group's prices (already cached if previously fetched)
+  for (const gid of groupIds) {
+    if (!priceCache[gid]) {
+      try {
+        const res = await fetch(\`https://tcgcsv.com/tcgplayer/3/\${gid}/prices\`);
+        if (res.ok) { const data = await res.json(); priceCache[gid] = data.results || []; }
+      } catch(e) {}
+    }
+  }
+
+  // Map prices to items
+  for (const item of sealedSingles) {
+    const entry = itemGroupMap[item.id];
+    if (!entry) continue;
+    const rows = (priceCache[entry.gid] || []).filter(r => r.productId === entry.pid);
+    const best = rows.find(r => r.marketPrice && r.subTypeName === 'Normal')
+               || rows.find(r => r.marketPrice && !r.subTypeName)
+               || rows.find(r => r.marketPrice);
+    if (best?.marketPrice) {
+      marketPriceStore[item.id] = parseFloat(best.marketPrice);
+    }
+  }
+
+  // Graded items: fall back to sticker price
+  for (const item of inventory.filter(i => i.type === 'Graded')) {
+    if (!marketPriceStore[item.id] && prices[item.id]) {
+      marketPriceStore[item.id] = parseFloat(prices[item.id]);
+    }
+  }
+
+  localStorage.setItem('ktcg_mktprices', JSON.stringify(marketPriceStore));
+  updateInvValStat();
+}
+
+function updateInvValStat() {
+  const el = document.getElementById('statInvVal');
+  if (!el) return;
+  let total = 0;
+  inventory.forEach(item => {
+    const mkt = marketPriceStore[item.id] || 0;
+    total += mkt * item.qty;
+  });
+  if (total === 0) { el.innerHTML = '<span style="font-size:10px;color:var(--t3)">—</span>'; return; }
+  // Format as $XXX.XK or $X.XM
+  let display;
+  if (total >= 1000000) {
+    display = '$' + (total / 1000000).toFixed(1) + 'M';
+  } else {
+    display = '$' + (total / 1000).toFixed(1) + 'K';
+  }
+  el.textContent = display;
+}
+
 // ══════════════════════════════════════════
 // SORT
 // ══════════════════════════════════════════
+function isPosActive(id) {
+  // Default true if not explicitly set to false
+  return posActive[id] !== false;
+}
+function togglePosActive(id) {
+  posActive[id] = !isPosActive(id);
+  localStorage.setItem('ktcg_posactive', JSON.stringify(posActive));
+  // Update checkbox appearance without re-rendering whole list
+  const cb = document.getElementById('poscheck_' + id);
+  if (cb) cb.checked = isPosActive(id);
+  renderPOS();
+}
+
 function setSort(order) {
   sortOrder = order;
   localStorage.setItem('ktcg_sort', order);
@@ -907,7 +1005,7 @@ function switchTab(tab) {
   if (tgl) tgl.style.display = tab === 'pos' ? 'block' : 'none';
   if (tab === 'inventory') { renderInventory(); }
   if (tab === 'cart') renderCart();
-  if (tab === 'setup') { renderSetup(); updateStats(); initSortUI(); }
+  if (tab === 'setup') { renderSetup(); updateStats(); initSortUI(); updateInvValStat(); batchFetchMarketPrices(); }
 }
 
 function openLogModal() {
@@ -928,7 +1026,7 @@ function renderPOS() {
   const q = (document.getElementById('posSearch')?.value || '').toLowerCase();
   const grid = document.getElementById('posGrid');
 
-  let items = inventory.filter(i => i.qty > 0);
+  let items = inventory.filter(i => i.qty > 0 && isPosActive(i.id));
   if (posFilter !== 'all') items = items.filter(i => i.type === posFilter);
   if (q) items = items.filter(i =>
     i.name.toLowerCase().includes(q) ||
@@ -1140,6 +1238,9 @@ async function fetchMarketPrice(item) {
       const label = (rows.length > 1 && best.subTypeName)
         ? ` <span style="font-size:10px;color:var(--t3)">(${best.subTypeName})</span>` : '';
       marketEl.innerHTML = `<span class="market-price-val">${fmtMoney(parseFloat(best.marketPrice))}</span>${label}`;
+      // Cache for inventory valuation
+      marketPriceStore[item.id] = parseFloat(best.marketPrice);
+      localStorage.setItem('ktcg_mktprices', JSON.stringify(marketPriceStore));
     } else {
       marketEl.innerHTML = `<span style="color:var(--t3)">No price data</span>`;
     }
@@ -1635,6 +1736,7 @@ function updateStats() {
   document.getElementById('statUnits').textContent = inventory.reduce((s,i)=>s+i.qty,0);
   document.getElementById('statSalesToday').textContent = todaySales.length;
   document.getElementById('statRevToday').textContent = `${fmtMoney(rev)}`;
+  updateInvValStat();
 }
 
 // ══════════════════════════════════════════
@@ -1717,6 +1819,12 @@ function renderPriceList() {
   const sortedInv = applySortOrder(inventory);
   el.innerHTML = sortedInv.map(item => `
     <div class="price-row">
+      <div class="pos-toggle">
+        <input type="checkbox" id="poscheck_${item.id}"
+          ${isPosActive(item.id) ? 'checked' : ''}
+          onchange="togglePosActive('${item.id}')">
+        <span class="pos-toggle-lbl">POS</span>
+      </div>
       <div class="price-row-name">${item.short || item.name}</div>
       <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
         <span style="color:var(--t3);font-size:13px">$</span>
@@ -1729,6 +1837,7 @@ function renderPriceList() {
 
 function savePrices() {
   localStorage.setItem('ktcg_prices', JSON.stringify(prices));
+  localStorage.setItem('ktcg_posactive', JSON.stringify(posActive));
   renderPOS();
   showToast('Prices saved ✓', 'success');
 }
@@ -1866,12 +1975,13 @@ function save() {
   localStorage.setItem('ktcg_inv', JSON.stringify(inventory));
   localStorage.setItem('ktcg_sales', JSON.stringify(sales));
   localStorage.setItem('ktcg_prices', JSON.stringify(prices));
+  localStorage.setItem('ktcg_posactive', JSON.stringify(posActive));
 }
 
 function resetAll() {
   if (!confirm('Reset ALL data? This cannot be undone.')) return;
   localStorage.clear();
-  inventory=[]; sales=[]; cart=[]; prices={}; qrCodes={}; gradedPhotos={}; splitPayments=[];
+  inventory=[]; sales=[]; cart=[]; prices={}; qrCodes={}; gradedPhotos={}; splitPayments=[]; posActive={}; marketPriceStore={};
   renderPOS(); renderCart(); renderInventory(); renderLog(); renderSetup(); updateCartBadge();
   showToast('All data reset');
 }
