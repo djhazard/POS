@@ -895,7 +895,7 @@ async function batchFetchMarketPrices() {
   for (const gid of groupIds) {
     if (!priceCache[gid]) {
       try {
-        const res = await fetch(\`https://tcgcsv.com/tcgplayer/3/\${gid}/prices\`);
+        const res = await fetch(`https://tcgcsv.com/tcgplayer/3/${gid}/prices`);
         if (res.ok) { const data = await res.json(); priceCache[gid] = data.results || []; }
       } catch(e) {}
     }
