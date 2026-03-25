@@ -1261,7 +1261,7 @@ function openAltPopup(id) {
   const item = inventory.find(i => i.id === id);
   if (!item) return;
   document.getElementById('altModalSub').textContent = item.name;
-  document.getElementById('altLink').href = item.url;
+  document.getElementById('altLink').href = item.alt_url || item.url || '#';
   document.getElementById('altOverlay').classList.add('open');
 }
 
@@ -1825,7 +1825,7 @@ function renderPriceList() {
           onchange="togglePosActive('${item.id}')">
         <span class="pos-toggle-lbl">POS</span>
       </div>
-      <div class="price-row-name">${item.short || item.name}</div>
+      <div class="price-row-name" style="cursor:pointer" onclick="openImgModal('${item.id}')">${item.short || item.name}</div>
       <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
         <span style="color:var(--t3);font-size:13px">$</span>
         <input class="price-row-input" type="number" step="0.01" min="0"
@@ -1993,7 +1993,7 @@ function openImgModal(id) {
   if (!item) return;
   const imgSrc = gradedPhotos[id] || item.img || '';
   document.getElementById('imgModalImg').src = imgSrc;
-  document.getElementById('imgModalName').textContent = item.short || item.name;
+  document.getElementById('imgModalName').textContent = item.name;
   document.getElementById('imgModalMeta').textContent = [item.type, item.set, item.notes].filter(Boolean).join(' · ');
   document.getElementById('imgModal').classList.add('open');
 }
