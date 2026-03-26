@@ -287,13 +287,13 @@ body::before{display:none;}
 .btn-sm{padding:10px 14px;font-size:14px;width:auto;}
 
 /* ── INVENTORY SCREEN ── */
-.inv-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:12px;}
+.inv-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;}
 .stat-box{
   background:var(--s1);border:1px solid var(--border);
-  border-radius:var(--r);padding:8px 5px;
+  border-radius:var(--r);padding:10px 8px;
 }
-.stat-lbl{font-family:'DM Mono',monospace;font-size:7px;letter-spacing:.3px;text-transform:uppercase;color:var(--t3);margin-bottom:2px;}
-.stat-val{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--gold);line-height:1.1;}
+.stat-lbl{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:3px;}
+.stat-val{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);}
 .inv-item{
   background:var(--s1);border:1px solid var(--border);
   border-radius:var(--r);padding:12px 14px;
@@ -565,6 +565,21 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
 .pos-sticky .toggle-bar{margin-bottom:8px;}
 .pos-sticky .search-wrap{margin-bottom:0;}
 
+.bt-log-entry{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--r);padding:12px 14px;margin-bottom:8px;
+}
+.bt-log-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+.bt-log-type{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:20px;}
+.bt-log-type.purchase{background:rgba(91,141,238,.15);color:var(--blue);}
+.bt-log-type.trade{background:rgba(245,200,66,.12);color:var(--gold);}
+.bt-log-amount{font-family:'Bebas Neue',sans-serif;font-size:18px;}
+.bt-log-amount.purchase{color:var(--red);}
+.bt-log-amount.trade{color:var(--gold);}
+.bt-log-detail{font-size:11px;color:var(--t2);line-height:1.6;}
+.bt-log-date{font-family:'DM Mono',monospace;font-size:9px;color:var(--t3);margin-top:4px;}
+.gear-active{background:rgba(245,200,66,.12) !important;border-color:rgba(245,200,66,.3) !important;}
+
 ::-webkit-scrollbar{width:3px;}
 ::-webkit-scrollbar-thumb{background:var(--s4);border-radius:3px;}
 </style>
@@ -574,11 +589,14 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-logo">THE KITCHEN <span>TCG</span> <span class="hdr-sub">· Point of Sale</span></div>
-  <div class="cart-badge-wrap">
-    <button class="hdr-cart-btn" id="hdrCartBtn" onclick="switchTab('cart')">
-      🛒 <span id="hdrCartCount">0</span>
-    </button>
-    <div class="cart-dot" id="cartDot"></div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="cart-badge-wrap">
+      <button class="hdr-cart-btn" id="hdrCartBtn" onclick="switchTab('cart')">
+        🛒 <span id="hdrCartCount">0</span>
+      </button>
+      <div class="cart-dot" id="cartDot"></div>
+    </div>
+    <button id="gearBtn" onclick="switchTab('setup')" style="background:var(--s3);border:1px solid var(--border);border-radius:var(--rsm);width:36px;height:36px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0">⚙️</button>
   </div>
 </div>
 
@@ -628,7 +646,6 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
       <div class="stat-box"><div class="stat-lbl">Units</div><div class="stat-val" id="statUnits">0</div></div>
       <div class="stat-box" style="cursor:pointer" onclick="openLogModal()"><div class="stat-lbl">Sales ↗</div><div class="stat-val" id="statSalesToday">0</div></div>
       <div class="stat-box" style="cursor:pointer" onclick="openLogModal()"><div class="stat-lbl">Revenue ↗</div><div class="stat-val" id="statRevToday">$0</div></div>
-      <div class="stat-box"><div class="stat-lbl">Inv $</div><div class="stat-val" id="statInvVal"><span style="font-size:10px;color:var(--t3)">…</span></div></div>
     </div>
 
     <!-- Import -->
@@ -639,6 +656,16 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
       <input type="file" id="xlsxFile" accept=".xlsx" onchange="importXLSX(event)">
       <button class="btn btn-gold" style="margin-top:10px" onclick="document.getElementById('xlsxFile').click()">Import XLSX</button>
       <div id="importMsg" style="margin-top:8px;font-size:12px;color:var(--t2);"></div>
+    </div>
+
+    <!-- Google Sheets Price Sync -->
+    <div class="setup-card">
+      <div class="setup-card-title">🔗 Sync Sticker Prices from Google Sheet</div>
+      <div class="setup-card-desc">Paste the published CSV URL from your Google Sheet to sync prices by short name. In your Sheet: File → Share → Publish to web → select your sheet → CSV format → copy link.</div>
+      <label class="lbl">Published Sheet CSV URL</label>
+      <input type="text" id="sheetsUrlInput" placeholder="https://docs.google.com/spreadsheets/d/…/pub?output=csv" value="">
+      <button class="btn btn-gold" style="margin-top:10px" onclick="syncFromSheets()">↻ Sync Prices Now</button>
+      <div id="sheetsMsg" style="margin-top:8px;font-size:12px;color:var(--t2)"></div>
     </div>
 
     <!-- Sort Order -->
@@ -692,6 +719,113 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
 
     <button class="btn btn-ghost" style="margin-top:4px;color:var(--red);border-color:rgba(232,85,85,.3)" onclick="resetAll()">⚠ Reset All Data</button>
   </div>
+
+  <!-- ══ BUY/TRADE ══ -->
+  <div class="screen" id="screen-buytrade">
+
+    <!-- Mode toggle -->
+    <div class="toggle-bar" style="margin-bottom:16px">
+      <div class="tog active" id="bt-tog-purchase" onclick="setBTMode('purchase')">Purchase</div>
+      <div class="tog" id="bt-tog-trade" onclick="setBTMode('trade')">Trade</div>
+    </div>
+
+    <!-- ── PURCHASE FORM ── -->
+    <div id="bt-purchase-form">
+      <div class="setup-card">
+        <div class="setup-card-title">📥 Log a Purchase</div>
+        <div class="setup-card-desc">Record an item you are buying at the show.</div>
+        <label class="lbl">Item Name *</label>
+        <input type="text" id="bt-p-name" placeholder="e.g. Charizard ex PSA 10">
+        <label class="lbl">Quantity</label>
+        <input type="number" id="bt-p-qty" value="1" min="1">
+        <label class="lbl">Price Paid ($) *</label>
+        <input type="number" id="bt-p-price" placeholder="0" min="0">
+        <label class="lbl">Notes</label>
+        <input type="text" id="bt-p-notes" placeholder="Condition, seller, etc.">
+        <label class="lbl">Photo</label>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <div id="bt-p-photo-preview" style="width:60px;height:80px;background:var(--s3);border-radius:var(--rsm);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;overflow:hidden">📷</div>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('bt-p-photo-file').click()" style="flex:1;margin-top:0">Tap to add photo</button>
+          <input type="file" id="bt-p-photo-file" class="file-hidden" accept="image/*" onchange="btPurchasePhoto(event)">
+        </div>
+        <button class="btn btn-gold" style="margin-top:14px" onclick="logPurchase()">✓ Log Purchase</button>
+      </div>
+    </div>
+
+    <!-- ── TRADE FORM ── -->
+    <div id="bt-trade-form" style="display:none">
+      <div class="setup-card">
+        <div class="setup-card-title">🔄 Log a Trade</div>
+        <div class="setup-card-desc">Record a trade — what you gave and what you received.</div>
+
+        <div class="sec-label" style="margin-top:8px">You Are Giving</div>
+        <select id="bt-t-give-item" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:10px 12px;outline:none;-webkit-appearance:none;margin-top:4px" onchange="btTradeGiveChanged()">
+          <option value="">— Select item from inventory —</option>
+        </select>
+        <div id="bt-t-give-price-row" style="display:none;margin-top:8px;font-family:'DM Mono',monospace;font-size:12px;color:var(--t2)">
+          Your sticker price: <span id="bt-t-give-price" style="color:var(--gold);font-family:'Bebas Neue',sans-serif;font-size:16px"></span>
+        </div>
+
+        <div class="sec-label" style="margin-top:14px">You Are Receiving</div>
+        <label class="lbl">Item Name *</label>
+        <input type="text" id="bt-t-recv-name" placeholder="e.g. Umbreon VMAX Alt Art PSA 9">
+        <label class="lbl">Their Stated Value ($)</label>
+        <input type="number" id="bt-t-recv-val" placeholder="0" min="0" oninput="btTradeCalc()">
+
+        <div class="sec-label" style="margin-top:14px">Trade Credit You Are Giving</div>
+        <div style="display:flex;gap:8px;align-items:flex-end;margin-top:4px">
+          <div style="flex:1">
+            <label class="lbl" style="margin-top:0">Amount or %</label>
+            <input type="number" id="bt-t-credit-val" placeholder="0" min="0" oninput="btTradeCalc()">
+          </div>
+          <div>
+            <label class="lbl" style="margin-top:0">Type</label>
+            <div style="display:flex;gap:4px">
+              <button class="disc-type-btn active" id="bt-t-credit-dollar" onclick="btSetCreditType('$')">$</button>
+              <button class="disc-type-btn" id="bt-t-credit-pct" onclick="btSetCreditType('%')">%</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trade summary -->
+        <div id="bt-trade-summary" style="background:var(--s3);border-radius:var(--r);padding:14px;margin-top:14px;display:none">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Trade Summary</div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:var(--t2)"><span>Your item value</span><span id="bt-ts-give-val" style="color:var(--text)"></span></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:var(--t2)"><span>Their item value</span><span id="bt-ts-recv-val" style="color:var(--text)"></span></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:var(--t2)"><span>Credit you give</span><span id="bt-ts-credit" style="color:var(--green)"></span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0 0;font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--text);border-top:1px solid var(--border);margin-top:6px"><span>Cash/Other Due to You</span><span id="bt-ts-balance" style="color:var(--gold)"></span></div>
+        </div>
+
+        <div id="bt-t-payment-row" style="display:none;margin-top:10px">
+          <label class="lbl" style="margin-top:0">Collect balance via</label>
+          <div class="pay-methods" style="grid-template-columns:repeat(4,1fr);gap:6px;margin:6px 0 0">
+            <div class="pay-method-btn" style="font-size:12px;padding:10px 4px" onclick="btSelectPayment('Cash')">💵<br>Cash</div>
+            <div class="pay-method-btn" style="font-size:12px;padding:10px 4px" onclick="btSelectPayment('Zelle')">💙<br>Zelle</div>
+            <div class="pay-method-btn" style="font-size:12px;padding:10px 4px" onclick="btSelectPayment('Venmo')">🔵<br>Venmo</div>
+            <div class="pay-method-btn" style="font-size:12px;padding:10px 4px" onclick="btSelectPayment('CashApp')">💚<br>CashApp</div>
+          </div>
+          <div id="bt-t-payment-selected" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--gold);margin-top:6px"></div>
+        </div>
+
+        <label class="lbl">Notes</label>
+        <input type="text" id="bt-t-notes" placeholder="Optional details about the trade">
+        <button class="btn btn-gold" style="margin-top:14px" onclick="logTrade()">✓ Complete Trade</button>
+      </div>
+    </div>
+
+    <!-- ── PURCHASE LOG ── -->
+    <div class="sec-label" style="margin-top:4px">Purchase Log</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="btn btn-ghost btn-sm" onclick="exportBuyTradeCSV()" style="flex:1;font-size:11px">⬇ Export All Activity</button>
+    </div>
+    <div id="bt-purchase-log"></div>
+
+    <!-- ── TRADE LOG ── -->
+    <div class="sec-label">Trade Log</div>
+    <div id="bt-trade-log"></div>
+
+  </div>
+
 </div>
 
 <!-- BOTTOM NAV -->
@@ -699,7 +833,7 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
   <div class="bnav-tab active" data-tab="pos" onclick="switchTab('pos')"><span class="ico">🏪</span>POS</div>
   <div class="bnav-tab" data-tab="cart" onclick="switchTab('cart')"><span class="ico">🛒</span>Cart</div>
   <div class="bnav-tab" data-tab="inventory" onclick="switchTab('inventory')"><span class="ico">📦</span>Inventory</div>
-  <div class="bnav-tab" data-tab="setup" onclick="switchTab('setup')"><span class="ico">⚙️</span>Setup</div>
+  <div class="bnav-tab" data-tab="buytrade" onclick="switchTab('buytrade')"><span class="ico">🤝</span>Buy/Trade</div>
 </div>
 
 <!-- ── PRODUCT DETAIL MODAL ── -->
@@ -752,8 +886,25 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
   <div class="modal">
     <button onclick="document.getElementById('logOverlay').classList.remove('open')" style="position:absolute;top:16px;right:16px;background:var(--s3);border:1px solid var(--border);border-radius:50%;width:32px;height:32px;color:var(--t2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;">✕</button>
     <div class="modal-title">Sales Log</div>
-    <div class="modal-sub">Tap a transaction to delete it</div>
+    <div class="modal-sub" id="logModalSub">Tap a transaction to delete it</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+      <button class="btn btn-ghost btn-sm" onclick="exportSalesCSV()" style="flex:1;font-size:11px;">⬇ Export Sales</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportInventoryCSV()" style="flex:1;font-size:11px;">⬇ Export Inventory</button>
+    </div>
+    <button class="btn btn-red" style="margin-bottom:16px;font-size:13px" onclick="promptClearLog()">⚠ Export & Clear Log</button>
     <div id="logList"></div>
+  </div>
+</div>
+
+<!-- ── CLEAR LOG CONFIRM ── -->
+<div class="overlay" id="clearLogOverlay">
+  <div class="modal">
+    <div class="modal-title">Export & Clear Log?</div>
+    <div class="modal-sub">This will export the current sales log as a CSV, then clear all transactions. Inventory quantities are NOT reset. Use this to start a fresh session.</div>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="btn btn-red" onclick="confirmClearLog()">Export & Clear</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('clearLogOverlay').classList.remove('open')">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -817,6 +968,12 @@ let inventory = JSON.parse(localStorage.getItem('ktcg_inv') || '[]');
 let sortOrder = localStorage.getItem('ktcg_sort') || 'loaded';
 let marketPriceStore = JSON.parse(localStorage.getItem('ktcg_mktprices') || '{}');
 let posActive = JSON.parse(localStorage.getItem('ktcg_posactive') || '{}');
+let purchases = JSON.parse(localStorage.getItem('ktcg_purchases') || '[]');
+let trades    = JSON.parse(localStorage.getItem('ktcg_trades') || '[]');
+let btMode    = 'purchase';
+let btCreditType = '$';
+let btSelectedPayment = '';
+let btPurchasePhotoData = '';
 let prices    = JSON.parse(localStorage.getItem('ktcg_prices') || '{}');
 let sales     = JSON.parse(localStorage.getItem('ktcg_sales') || '[]');
 let qrCodes   = JSON.parse(localStorage.getItem('ktcg_qr') || '{}');
@@ -846,6 +1003,7 @@ window.addEventListener('DOMContentLoaded', () => {
   renderGradedPhotoPreviews();
   loadSampleIfEmpty();
   initSortUI();
+  renderBTLogs();
 });
 
 function loadSampleIfEmpty() {
@@ -872,12 +1030,140 @@ function loadSampleIfEmpty() {
 }
 
 
+
+// ══════════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════════
+function exportSalesCSV() {
+  if (!sales.length) { showToast('No sales to export', 'error'); return; }
+
+  const rows = [];
+  // Header
+  rows.push([
+    'Transaction #', 'Date', 'Time',
+    'Item', 'Qty', 'Unit Price',
+    'Item Discount', 'Line Total',
+    'Cart Discount', 'Grand Total',
+    'Payment Method(s)'
+  ]);
+
+  sales.forEach(s => {
+    const dt = new Date(s.timestamp);
+    const dateStr = dt.toLocaleDateString('en-US', {month:'2-digit',day:'2-digit',year:'numeric'});
+    const timeStr = dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const payStr = s.payments.map(p => `${p.method}: $${Math.round(p.amount)}`).join(' + ');
+
+    // One row per item
+    s.items.forEach((item, idx) => {
+      rows.push([
+        s.id,
+        dateStr,
+        timeStr,
+        item.name,
+        item.qty,
+        Math.round(item.unitPrice),
+        item.discountAmt > 0 ? Math.round(item.discountAmt) : '',
+        Math.round(item.lineTotal),
+        '', // cart discount — shown on summary row only
+        '', // grand total — shown on summary row only
+        idx === 0 ? payStr : '' // payment shown on first item row only
+      ]);
+    });
+
+    // Summary row for the transaction
+    rows.push([
+      s.id,
+      dateStr,
+      timeStr,
+      s.items.length > 1 ? `[${s.items.length} items]` : '',
+      '',
+      '',
+      '',
+      '',
+      s.cartDiscount > 0 ? Math.round(s.cartDiscount) : '',
+      Math.round(s.total),
+      ''
+    ]);
+
+    // Blank separator row between transactions
+    rows.push(['', '', '', '', '', '', '', '', '', '', '']);
+  });
+
+  downloadCSV(rows, `kitchen_tcg_sales_${csvDateStamp()}.csv`);
+  showToast('Sales exported ✓', 'success');
+}
+
+function exportInventoryCSV() {
+  if (!inventory.length) { showToast('No inventory to export', 'error'); return; }
+
+  const rows = [];
+  rows.push(['Short Name', 'Product Name', 'Set', 'Type', 'Qty', 'Sticker Price', 'Notes']);
+
+  applySortOrder(inventory).forEach(item => {
+    rows.push([
+      item.short || item.name,
+      item.name,
+      item.set || '',
+      item.type || '',
+      item.qty,
+      prices[item.id] ? Math.round(prices[item.id]) : '',
+      item.notes || ''
+    ]);
+  });
+
+  downloadCSV(rows, `kitchen_tcg_inventory_${csvDateStamp()}.csv`);
+  showToast('Inventory exported ✓', 'success');
+}
+
+function promptClearLog() {
+  document.getElementById('clearLogOverlay').classList.add('open');
+}
+
+function confirmClearLog() {
+  exportSalesCSV();
+  sales = [];
+  save();
+  document.getElementById('clearLogOverlay').classList.remove('open');
+  renderLog();
+  updateStats();
+  showToast('Log cleared — fresh session started', 'success');
+  // Reset daily sale counters so numbering restarts
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('ktcg_salecount_'));
+  keys.forEach(k => localStorage.removeItem(k));
+}
+
+function downloadCSV(rows, filename) {
+  const csv = rows.map(row =>
+    row.map(cell => {
+      const s = String(cell === null || cell === undefined ? '' : cell);
+      // Wrap in quotes if contains comma, quote, or newline
+      return s.includes(',') || s.includes('"') || s.includes('\n')
+        ? '"' + s.replace(/"/g, '""') + '"'
+        : s;
+    }).join(',')
+  ).join('\n');
+
+  const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function csvDateStamp() {
+  const d = new Date();
+  return `${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}${String(d.getFullYear()).slice(-2)}`;
+}
+
 // ══════════════════════════════════════════
 // BATCH MARKET PRICE FETCH (for Inv $ stat)
 // ══════════════════════════════════════════
 async function batchFetchMarketPrices() {
-  const el = document.getElementById('statInvVal');
-  if (el) el.innerHTML = '<span style="font-size:10px;color:var(--t3)">fetching…</span>';
+  // statInvVal removed — batch fetch still caches prices for future use
 
   const sealedSingles = inventory.filter(i => i.type !== 'Graded' && i.url);
   // Collect unique groupIds needed
@@ -922,10 +1208,11 @@ async function batchFetchMarketPrices() {
   }
 
   localStorage.setItem('ktcg_mktprices', JSON.stringify(marketPriceStore));
-  updateInvValStat();
+
 }
 
 function updateInvValStat() {
+  return; // stat card removed
   const el = document.getElementById('statInvVal');
   if (!el) return;
   let total = 0;
@@ -998,14 +1285,18 @@ function initSortUI() {
 function switchTab(tab) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.bnav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('screen-' + tab).classList.add('active');
+  document.getElementById('screen-' + tab)?.classList.add('active');
   document.querySelector(`.bnav-tab[data-tab="${tab}"]`)?.classList.add('active');
   // Show toggle only on POS
   const tgl = document.getElementById('hdrToggle');
   if (tgl) tgl.style.display = tab === 'pos' ? 'block' : 'none';
+  // Gear icon highlight when on Setup
+  const gear = document.getElementById('gearBtn');
+  if (gear) gear.classList.toggle('gear-active', tab === 'setup');
   if (tab === 'inventory') { renderInventory(); }
   if (tab === 'cart') renderCart();
-  if (tab === 'setup') { renderSetup(); updateStats(); initSortUI(); updateInvValStat(); batchFetchMarketPrices(); }
+  if (tab === 'setup') { renderSetup(); updateStats(); initSortUI(); batchFetchMarketPrices(); }
+  if (tab === 'buytrade') { renderBTLogs(); populateBTGiveSelect(); }
 }
 
 function openLogModal() {
@@ -1736,7 +2027,7 @@ function updateStats() {
   document.getElementById('statUnits').textContent = inventory.reduce((s,i)=>s+i.qty,0);
   document.getElementById('statSalesToday').textContent = todaySales.length;
   document.getElementById('statRevToday').textContent = `${fmtMoney(rev)}`;
-  updateInvValStat();
+
 }
 
 // ══════════════════════════════════════════
@@ -1838,6 +2129,8 @@ function renderPriceList() {
 function savePrices() {
   localStorage.setItem('ktcg_prices', JSON.stringify(prices));
   localStorage.setItem('ktcg_posactive', JSON.stringify(posActive));
+  localStorage.setItem('ktcg_purchases', JSON.stringify(purchases));
+  localStorage.setItem('ktcg_trades', JSON.stringify(trades));
   renderPOS();
   showToast('Prices saved ✓', 'success');
 }
@@ -1904,6 +2197,313 @@ function renderQRPreviews() {
   });
 }
 
+
+// ══════════════════════════════════════════
+// BUY / TRADE
+// ══════════════════════════════════════════
+
+function setBTMode(mode) {
+  btMode = mode;
+  document.getElementById('bt-purchase-form').style.display = mode === 'purchase' ? 'block' : 'none';
+  document.getElementById('bt-trade-form').style.display   = mode === 'trade'    ? 'block' : 'none';
+  document.getElementById('bt-tog-purchase').classList.toggle('active', mode === 'purchase');
+  document.getElementById('bt-tog-trade').classList.toggle('active', mode === 'trade');
+}
+
+function populateBTGiveSelect() {
+  const sel = document.getElementById('bt-t-give-item');
+  if (!sel) return;
+  const active = inventory.filter(i => i.qty > 0 && isPosActive(i.id));
+  sel.innerHTML = '<option value="">— Select item from inventory —</option>' +
+    active.map(i => `<option value="${i.id}">${i.short || i.name} (×${i.qty}) — ${prices[i.id] ? fmtMoney(parseFloat(prices[i.id])) : 'No price'}</option>`).join('');
+}
+
+function btTradeGiveChanged() {
+  const id = document.getElementById('bt-t-give-item').value;
+  const row = document.getElementById('bt-t-give-price-row');
+  if (!id) { row.style.display = 'none'; return; }
+  const p = prices[id];
+  document.getElementById('bt-t-give-price').textContent = p ? fmtMoney(parseFloat(p)) : 'No price set';
+  row.style.display = 'block';
+  btTradeCalc();
+}
+
+function btSetCreditType(type) {
+  btCreditType = type;
+  document.getElementById('bt-t-credit-dollar').classList.toggle('active', type === '$');
+  document.getElementById('bt-t-credit-pct').classList.toggle('active', type === '%');
+  btTradeCalc();
+}
+
+function btSelectPayment(method) {
+  btSelectedPayment = method;
+  document.querySelectorAll('#bt-t-payment-row .pay-method-btn').forEach(b => b.classList.remove('selected'));
+  event.target.closest('.pay-method-btn').classList.add('selected');
+  document.getElementById('bt-t-payment-selected').textContent = `Payment method: ${method}`;
+}
+
+function btTradeCalc() {
+  const giveId   = document.getElementById('bt-t-give-item').value;
+  const recvVal  = parseFloat(document.getElementById('bt-t-recv-val').value) || 0;
+  const creditV  = parseFloat(document.getElementById('bt-t-credit-val').value) || 0;
+  const givePrice = giveId && prices[giveId] ? parseFloat(prices[giveId]) : 0;
+
+  // Credit amount
+  let creditAmt = btCreditType === '%'
+    ? recvVal * creditV / 100
+    : creditV;
+
+  // Balance due = what you gave (your price) minus credit
+  const balance = Math.max(0, givePrice - creditAmt);
+
+  const summary = document.getElementById('bt-trade-summary');
+  const payRow  = document.getElementById('bt-t-payment-row');
+
+  if (giveId || recvVal || creditAmt) {
+    summary.style.display = 'block';
+    document.getElementById('bt-ts-give-val').textContent = givePrice ? fmtMoney(givePrice) : '—';
+    document.getElementById('bt-ts-recv-val').textContent = recvVal ? fmtMoney(recvVal) : '—';
+    document.getElementById('bt-ts-credit').textContent   = fmtMoney(creditAmt);
+    document.getElementById('bt-ts-balance').textContent  = fmtMoney(balance);
+    payRow.style.display = balance > 0 ? 'block' : 'none';
+  } else {
+    summary.style.display = 'none';
+    payRow.style.display  = 'none';
+  }
+}
+
+function btPurchasePhoto(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    btPurchasePhotoData = e.target.result;
+    const preview = document.getElementById('bt-p-photo-preview');
+    preview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function logPurchase() {
+  const name  = document.getElementById('bt-p-name').value.trim();
+  const qty   = parseInt(document.getElementById('bt-p-qty').value) || 1;
+  const price = parseFloat(document.getElementById('bt-p-price').value) || 0;
+  const notes = document.getElementById('bt-p-notes').value.trim();
+
+  if (!name) { showToast('Item name required', 'error'); return; }
+  if (!price) { showToast('Price paid required', 'error'); return; }
+
+  purchases.unshift({
+    id: 'pur_' + Date.now(),
+    timestamp: new Date().toISOString(),
+    name, qty, price, notes,
+    photo: btPurchasePhotoData || ''
+  });
+  save();
+  renderBTLogs();
+
+  // Clear form
+  document.getElementById('bt-p-name').value  = '';
+  document.getElementById('bt-p-qty').value   = '1';
+  document.getElementById('bt-p-price').value = '';
+  document.getElementById('bt-p-notes').value = '';
+  document.getElementById('bt-p-photo-preview').innerHTML = '📷';
+  btPurchasePhotoData = '';
+  showToast('Purchase logged ✓', 'success');
+}
+
+function logTrade() {
+  const giveId   = document.getElementById('bt-t-give-item').value;
+  const recvName = document.getElementById('bt-t-recv-name').value.trim();
+  const recvVal  = parseFloat(document.getElementById('bt-t-recv-val').value) || 0;
+  const creditV  = parseFloat(document.getElementById('bt-t-credit-val').value) || 0;
+  const notes    = document.getElementById('bt-t-notes').value.trim();
+
+  if (!giveId)   { showToast('Select an item you are giving', 'error'); return; }
+  if (!recvName) { showToast('Received item name required', 'error'); return; }
+
+  const giveItem  = inventory.find(i => i.id === giveId);
+  const givePrice = giveItem && prices[giveId] ? parseFloat(prices[giveId]) : 0;
+  const creditAmt = btCreditType === '%' ? recvVal * creditV / 100 : creditV;
+  const balance   = Math.max(0, givePrice - creditAmt);
+
+  trades.unshift({
+    id: 'trd_' + Date.now(),
+    timestamp: new Date().toISOString(),
+    gaveId: giveId,
+    gaveName: giveItem?.name || giveId,
+    gavePrice: givePrice,
+    receivedName: recvName,
+    receivedVal: recvVal,
+    creditType: btCreditType,
+    creditVal: creditV,
+    creditAmt,
+    balance,
+    paymentMethod: btSelectedPayment,
+    notes
+  });
+
+  // Deduct from inventory
+  if (giveItem) {
+    giveItem.qty = Math.max(0, giveItem.qty - 1);
+  }
+
+  save();
+  renderBTLogs();
+  renderInventory();
+  renderPOS();
+
+  // Clear form
+  document.getElementById('bt-t-give-item').value  = '';
+  document.getElementById('bt-t-give-price-row').style.display = 'none';
+  document.getElementById('bt-t-recv-name').value  = '';
+  document.getElementById('bt-t-recv-val').value   = '';
+  document.getElementById('bt-t-credit-val').value = '';
+  document.getElementById('bt-trade-summary').style.display = 'none';
+  document.getElementById('bt-t-payment-row').style.display = 'none';
+  document.getElementById('bt-t-notes').value = '';
+  btSelectedPayment = '';
+  document.getElementById('bt-t-payment-selected').textContent = '';
+  document.querySelectorAll('#bt-t-payment-row .pay-method-btn').forEach(b => b.classList.remove('selected'));
+  populateBTGiveSelect();
+  showToast('Trade logged ✓', 'success');
+}
+
+function renderBTLogs() {
+  // Purchase log
+  const pel = document.getElementById('bt-purchase-log');
+  if (pel) {
+    if (!purchases.length) {
+      pel.innerHTML = '<div class="empty" style="padding:20px"><div class="empty-ico">📥</div><p>No purchases logged yet.</p></div>';
+    } else {
+      pel.innerHTML = purchases.map(p => {
+        const dt = new Date(p.timestamp);
+        const dateStr = dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+        return `<div class="bt-log-entry">
+          <div class="bt-log-top">
+            <div>
+              <span class="bt-log-type purchase">Purchase</span>
+              <div style="font-size:13px;font-weight:600;margin-top:4px">${p.name}</div>
+            </div>
+            <div class="bt-log-amount purchase">-${fmtMoney(p.price * p.qty)}</div>
+          </div>
+          ${p.photo ? `<img src="${p.photo}" style="width:60px;height:80px;object-fit:cover;border-radius:6px;margin-bottom:6px">` : ''}
+          <div class="bt-log-detail">Qty: ${p.qty} · Paid: ${fmtMoney(p.price)} each${p.notes ? ' · ' + p.notes : ''}</div>
+          <div class="bt-log-date">${dateStr}</div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // Trade log
+  const tel = document.getElementById('bt-trade-log');
+  if (tel) {
+    if (!trades.length) {
+      tel.innerHTML = '<div class="empty" style="padding:20px"><div class="empty-ico">🔄</div><p>No trades logged yet.</p></div>';
+    } else {
+      tel.innerHTML = trades.map(t => {
+        const dt = new Date(t.timestamp);
+        const dateStr = dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+        const creditStr = t.creditType === '%' ? `${t.creditVal}% of ${fmtMoney(t.receivedVal)}` : fmtMoney(t.creditAmt);
+        return `<div class="bt-log-entry">
+          <div class="bt-log-top">
+            <div>
+              <span class="bt-log-type trade">Trade</span>
+              <div style="font-size:12px;font-weight:600;margin-top:4px">Gave: ${t.gaveName}</div>
+            </div>
+            <div class="bt-log-amount trade">${t.balance > 0 ? '+'+fmtMoney(t.balance) : 'Even'}</div>
+          </div>
+          <div class="bt-log-detail">
+            Received: ${t.receivedName}${t.receivedVal ? ' (val: '+fmtMoney(t.receivedVal)+')' : ''}<br>
+            Credit given: ${creditStr}${t.balance > 0 ? ' · Cash due: '+fmtMoney(t.balance)+(t.paymentMethod?' via '+t.paymentMethod:'') : ''}
+            ${t.notes ? '<br>'+t.notes : ''}
+          </div>
+          <div class="bt-log-date">${dateStr}</div>
+        </div>`;
+      }).join('');
+    }
+  }
+}
+
+// Combined export for purchases + trades
+function exportBuyTradeCSV() {
+  if (!purchases.length && !trades.length) { showToast('No activity to export', 'error'); return; }
+
+  const rows = [['Type','Date','Time','Item Given / Purchased','Qty','Price Paid / Your Price','Received Item','Received Value','Credit Given','Balance Due','Payment Method','Notes']];
+
+  purchases.forEach(p => {
+    const dt = new Date(p.timestamp);
+    rows.push([
+      'Purchase',
+      dt.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'}),
+      dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),
+      p.name, p.qty, Math.round(p.price),
+      '','','','','', p.notes || ''
+    ]);
+  });
+
+  trades.forEach(t => {
+    const dt = new Date(t.timestamp);
+    rows.push([
+      'Trade',
+      dt.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'}),
+      dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),
+      t.gaveName, 1, Math.round(t.gavePrice),
+      t.receivedName, Math.round(t.receivedVal),
+      Math.round(t.creditAmt), Math.round(t.balance),
+      t.paymentMethod || '', t.notes || ''
+    ]);
+  });
+
+  downloadCSV(rows, `kitchen_tcg_activity_${csvDateStamp()}.csv`);
+  showToast('Activity exported ✓', 'success');
+}
+
+// ══════════════════════════════════════════
+// GOOGLE SHEETS PRICE SYNC
+// ══════════════════════════════════════════
+async function syncFromSheets() {
+  const url = document.getElementById('sheetsUrlInput').value.trim();
+  const msg = document.getElementById('sheetsMsg');
+  if (!url) { msg.innerHTML = '<span style="color:var(--red)">Paste your published CSV URL first.</span>'; return; }
+  msg.innerHTML = '<span style="color:var(--t2)">Fetching…</span>';
+  try {
+    // Use a CORS proxy since Google Sheets published CSV doesn't allow cross-origin from local files
+    const fetchUrl = url.includes('docs.google.com') ? 'https://corsproxy.io/?url=' + encodeURIComponent(url) : url;
+    const res = await fetch(fetchUrl);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    const lines = text.split('\n').filter(l => l.trim());
+    if (lines.length < 2) throw new Error('Sheet appears empty');
+
+    // Parse CSV — expect headers in row 1 with short_name and sticker_price columns
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/["\']/g,''));
+    const shortIdx = headers.findIndex(h => h.includes('short'));
+    const priceIdx = headers.findIndex(h => h.includes('price') || h.includes('sticker'));
+
+    if (shortIdx === -1 || priceIdx === -1) throw new Error('Need "short_name" and "sticker_price" columns in your sheet');
+
+    let matched = 0;
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g,''));
+      const shortName = cols[shortIdx];
+      const price = parseFloat(cols[priceIdx]);
+      if (!shortName || isNaN(price)) continue;
+      // Match by short name (case-insensitive)
+      const item = inventory.find(inv => (inv.short||inv.name).toLowerCase() === shortName.toLowerCase());
+      if (item) { prices[item.id] = price.toString(); matched++; }
+    }
+
+    localStorage.setItem('ktcg_prices', JSON.stringify(prices));
+    renderPriceList();
+    renderPOS();
+    msg.innerHTML = `<span style="color:var(--green)">✓ Synced ${matched} prices from Sheet.</span>`;
+    showToast(`✓ ${matched} prices synced`, 'success');
+  } catch(e) {
+    msg.innerHTML = `<span style="color:var(--red)">Error: ${e.message}</span>`;
+  }
+}
+
 // ══════════════════════════════════════════
 // XLSX IMPORT
 // ══════════════════════════════════════════
@@ -1949,12 +2549,18 @@ function importXLSX(event) {
           cardladder_url: String(r[col('cardladder_url')] || '').trim(),
           notes: String(r[col('notes')] || '').trim(),
         });
+        // Auto-load sticker price if provided
+        const sp = r[col('sticker_price')];
+        if (sp !== '' && sp !== undefined && sp !== null && !isNaN(parseFloat(sp))) {
+          prices[parsed[parsed.length-1].id] = parseFloat(sp).toString();
+        }
       }
 
       if (parsed.length === 0) { document.getElementById('importMsg').innerHTML = `<span style="color:var(--red)">No data rows found.</span>`; return; }
 
       inventory = parsed;
       save();
+      localStorage.setItem('ktcg_prices', JSON.stringify(prices));
       renderPOS();
       renderSetup();
       renderInventory();
@@ -1976,12 +2582,14 @@ function save() {
   localStorage.setItem('ktcg_sales', JSON.stringify(sales));
   localStorage.setItem('ktcg_prices', JSON.stringify(prices));
   localStorage.setItem('ktcg_posactive', JSON.stringify(posActive));
+  localStorage.setItem('ktcg_purchases', JSON.stringify(purchases));
+  localStorage.setItem('ktcg_trades', JSON.stringify(trades));
 }
 
 function resetAll() {
   if (!confirm('Reset ALL data? This cannot be undone.')) return;
   localStorage.clear();
-  inventory=[]; sales=[]; cart=[]; prices={}; qrCodes={}; gradedPhotos={}; splitPayments=[]; posActive={}; marketPriceStore={};
+  inventory=[]; sales=[]; cart=[]; prices={}; qrCodes={}; gradedPhotos={}; splitPayments=[]; posActive={}; marketPriceStore={}; purchases=[]; trades=[];
   renderPOS(); renderCart(); renderInventory(); renderLog(); renderSetup(); updateCartBadge();
   showToast('All data reset');
 }
