@@ -680,6 +680,9 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
         <button class="btn btn-gold" onclick="syncFromSheets()" style="flex:2">↻ Sync Inventory from Sheet</button>
         <button class="btn btn-ghost btn-sm" onclick="syncPricesOnly()" style="flex:1;margin-top:0;font-size:11px">Prices Only</button>
       </div>
+      <div style="margin-top:8px">
+        <button class="btn btn-ghost btn-sm" onclick="syncInventorySnapshotToSheets()" style="font-size:11px;color:var(--green);border-color:rgba(61,214,140,.3)">↑ Push Inventory Snapshot to Sheet</button>
+      </div>
       <div id="sheetsMsg" style="margin-top:8px;font-size:12px;color:var(--t2)"></div>
     </div>
 
@@ -882,9 +885,11 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
     </div>
 
     <!-- ── LOGS ── -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;margin-bottom:8px">
+    <div id="btSheetsMsg" style="margin-top:4px;margin-bottom:8px;font-size:12px;color:var(--t2)"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0;margin-bottom:8px">
       <div class="sec-label" style="margin:0">Purchase Log</div>
-      <button class="btn btn-ghost btn-sm" onclick="exportBuyTradeCSV()" style="margin-top:0;font-size:11px">⬇ Export All Activity</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportBuyTradeCSV()" style="margin-top:0;font-size:11px">⬇ Export CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="syncBuyTradeToSheets()" style="margin-top:0;font-size:11px;color:var(--green);border-color:rgba(61,214,140,.3)">↑ Sync to Sheet</button>
     </div>
     <div id="bt-purchase-log"></div>
 
@@ -953,10 +958,15 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
     <button onclick="document.getElementById('logOverlay').classList.remove('open')" style="position:absolute;top:16px;right:16px;background:var(--s3);border:1px solid var(--border);border-radius:50%;width:32px;height:32px;color:var(--t2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;">✕</button>
     <div class="modal-title">Sales Log</div>
     <div class="modal-sub" id="logModalSub">Tap a transaction to delete it</div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-      <button class="btn btn-ghost btn-sm" onclick="exportSalesCSV()" style="flex:1;font-size:11px;">⬇ Export Sales</button>
-      <button class="btn btn-ghost btn-sm" onclick="exportInventoryCSV()" style="flex:1;font-size:11px;">⬇ Export Inventory</button>
+    <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+      <button class="btn btn-ghost btn-sm" onclick="exportSalesCSV()" style="flex:1;font-size:11px;">⬇ CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="syncSalesToSheets()" style="flex:1;font-size:11px;color:var(--green);border-color:rgba(61,214,140,.3)">↑ Sync to Sheet</button>
     </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+      <button class="btn btn-ghost btn-sm" onclick="exportInventoryCSV()" style="flex:1;font-size:11px;">⬇ Inventory CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="syncInventorySnapshotToSheets()" style="flex:1;font-size:11px;color:var(--green);border-color:rgba(61,214,140,.3)">↑ Inventory Snapshot</button>
+    </div>
+    <div id="logSheetsMsg" style="margin-bottom:10px;font-size:12px;color:var(--t2)"></div>
     <button class="btn btn-red" style="margin-bottom:16px;font-size:13px" onclick="promptClearLog()">⚠ Export & Clear Log</button>
     <div id="logList"></div>
   </div>
@@ -1058,7 +1068,6 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
     if (!sheet) throw new Error('No sheet named Inventory found');
     const data = sheet.getDataRange().getValues();
 
-    // Auto-detect header row by finding row containing product_name
     let headerIdx = -1;
     for (let i = 0; i < data.length; i++) {
       if (data[i].some(c => c.toString().toLowerCase().trim() === 'product_name')) {
@@ -1069,10 +1078,8 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
 
     const headers = data[headerIdx].map(h => h.toString().toLowerCase().trim());
     const col = name => headers.indexOf(name);
-    const rows = [];
-    const priceMap = {};
+    const rows = []; const priceMap = {};
 
-    // Skip header row + description row (headerIdx + 2), read all data rows
     for (let i = headerIdx + 2; i < data.length; i++) {
       const r = data[i];
       const name = (r[col('product_name')] || '').toString().trim();
@@ -1081,39 +1088,56 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
       const sp = parseFloat(r[col('sticker_price')]);
       const type = (r[col('item_type')] || 'Sealed').toString().trim();
       const urlRaw = (r[col('tcgplayer_url')] || '').toString().trim();
-      const imgUrl = (r[col('image_url')] || '').toString().trim();
       const match = urlRaw.match(/\/product\/(\d+)/);
-      const idBase = match ? match[1] : name.replace(/[^a-z0-9]/gi,'').slice(0,8).toLowerCase() + i;
-      const id = (type === 'Graded' ? 'gr' : 'ev') + idBase;
-
-      rows.push({
-        id, name,
-        set:  (r[col('set_name')] || '').toString().trim(),
-        short, type,
-        qty:  parseInt(r[col('quantity')]) || 0,
-        url:  urlRaw,
-        img:  imgUrl,
-        alt_url:        (r[col('alt_url')] || '').toString().trim(),
-        cardladder_url: (r[col('cardladder_url')] || '').toString().trim(),
-        notes: (r[col('notes')] || '').toString().trim()
-      });
+      const idBase = match ? match[1] : name.replace(/[^a-z0-9]/gi,'').slice(0,8).toLowerCase()+i;
+      const id = (type==='Graded'?'gr':'ev')+idBase;
+      rows.push({id,name,set:(r[col('set_name')]||'').toString().trim(),
+        short,type,qty:parseInt(r[col('quantity')])||0,url:urlRaw,
+        img:(r[col('image_url')]||'').toString().trim(),
+        alt_url:(r[col('alt_url')]||'').toString().trim(),
+        cardladder_url:(r[col('cardladder_url')]||'').toString().trim(),
+        notes:(r[col('notes')]||'').toString().trim()});
       if (!isNaN(sp) && sp > 0) priceMap[id] = sp.toString();
     }
-
-    if (rows.length === 0) throw new Error('No data rows found after header. Check your sheet has data below row ' + (headerIdx + 3));
-
-    const result = action === 'getPrices'
-      ? { prices: Object.fromEntries(rows.map(r => [r.short, priceMap[r.id]]).filter(p => p[1])) }
-      : { inventory: rows, prices: priceMap, count: rows.length };
-
-    return ContentService
-      .createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON);
-
+    if (!rows.length) throw new Error('No data rows found');
+    const result = action==='getPrices'
+      ? {prices:Object.fromEntries(rows.map(r=>[r.short,priceMap[r.id]]).filter(p=>p[1]))}
+      : {inventory:rows,prices:priceMap,count:rows.length};
+    return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
   } catch(err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ error: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({error:err.toString()})).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doPost(e) {
+  try {
+    const payload = JSON.parse(e.postData.contents);
+    const action  = payload.action;
+    const rows    = payload.rows || [];
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheetName;
+    if (action === 'appendSales')             sheetName = 'Sales Log';
+    else if (action === 'appendBuyTrade')     sheetName = 'Buy-Trade Log';
+    else if (action === 'appendInventorySnapshot') sheetName = 'Inventory Snapshot';
+    else throw new Error('Unknown action: ' + action);
+
+    let sheet = ss.getSheetByName(sheetName);
+    if (!sheet) throw new Error('Sheet "' + sheetName + '" not found in workbook');
+
+    // For snapshot: clear existing data rows first (keep header), then append
+    if (action === 'appendInventorySnapshot') {
+      const lastRow = sheet.getLastRow();
+      if (lastRow > 3) sheet.deleteRows(4, lastRow - 3);
+    }
+
+    if (rows.length > 0) {
+      const startRow = sheet.getLastRow() + 1;
+      sheet.getRange(startRow, 1, rows.length, rows[0].length).setValues(rows);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({success:true,appended:rows.length})).setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({error:err.toString()})).setMimeType(ContentService.MimeType.JSON);
   }
 }</div>
         After pasting: Deploy → New deployment → Web app → Execute as: Me → Access: Anyone → Deploy → copy URL → paste in Setup.</div>
@@ -2735,6 +2759,129 @@ function exportBuyTradeCSV() {
 // ── HELP MODAL ──
 function openHelpModal() {
   document.getElementById('helpOverlay').classList.add('open');
+}
+
+
+// ══════════════════════════════════════════
+// SHEETS WRITE-BACK (app → Google Sheet)
+// ══════════════════════════════════════════
+
+function getSheetsUrl() {
+  return localStorage.getItem('ktcg_sheetsUrl') || document.getElementById('sheetsUrlInput')?.value?.trim() || '';
+}
+
+function showSheetsMsg(elId, msg, isError) {
+  const el = document.getElementById(elId);
+  if (el) el.innerHTML = `<span style="color:${isError?'var(--red)':'var(--green)'}">${msg}</span>`;
+}
+
+async function postToSheets(action, payload) {
+  const url = getSheetsUrl();
+  if (!url) throw new Error('No Apps Script URL saved. Go to Setup → Google Sheets Sync and enter your URL.');
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' }, // text/plain avoids CORS preflight
+    body: JSON.stringify({ action, ...payload }),
+    redirect: 'follow'
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const text = await res.text();
+  let json;
+  try { json = JSON.parse(text); } catch(e) { throw new Error('Invalid response from script'); }
+  if (json.error) throw new Error(json.error);
+  return json;
+}
+
+async function syncSalesToSheets() {
+  if (!sales.length) { showSheetsMsg('logSheetsMsg', '⚠ No sales to sync', true); return; }
+  showSheetsMsg('logSheetsMsg', 'Syncing sales…', false);
+  try {
+    // Build rows matching Sales Log sheet columns
+    const rows = [];
+    sales.forEach(s => {
+      const dt = new Date(s.timestamp);
+      const date = dt.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'});
+      const time = dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+      const pay  = s.payments.map(p=>`${p.method}: $${Math.round(p.amount)}`).join(' + ');
+      s.items.forEach((item, idx) => {
+        rows.push([
+          s.id, date, time,
+          item.name, item.qty,
+          Math.round(item.unitPrice),
+          item.discountAmt > 0 ? Math.round(item.discountAmt) : '',
+          Math.round(item.lineTotal),
+          idx === s.items.length - 1 && s.cartDiscount > 0 ? Math.round(s.cartDiscount) : '',
+          idx === s.items.length - 1 ? Math.round(s.total) : '',
+          idx === 0 ? pay : ''
+        ]);
+      });
+    });
+    const result = await postToSheets('appendSales', { rows });
+    showSheetsMsg('logSheetsMsg', `✓ ${result.appended} rows synced to Sales Log sheet`, false);
+    showToast('Sales synced to Sheet ✓', 'success');
+  } catch(e) {
+    showSheetsMsg('logSheetsMsg', '✗ ' + e.message, true);
+  }
+}
+
+async function syncInventorySnapshotToSheets() {
+  if (!inventory.length) { showToast('No inventory to sync', 'error'); return; }
+  showSheetsMsg('sheetsMsg', 'Pushing inventory snapshot…', false);
+  showSheetsMsg('logSheetsMsg', 'Pushing inventory snapshot…', false);
+  try {
+    const rows = applySortOrder(inventory).map(item => [
+      item.short || item.name,
+      item.name,
+      item.set || '',
+      item.type || '',
+      item.qty,
+      prices[item.id] ? Math.round(prices[item.id]) : '',
+      item.notes || ''
+    ]);
+    const result = await postToSheets('appendInventorySnapshot', { rows });
+    showSheetsMsg('sheetsMsg', `✓ ${result.appended} items written to Inventory Snapshot`, false);
+    showSheetsMsg('logSheetsMsg', `✓ Inventory snapshot synced`, false);
+    showToast('Inventory snapshot synced ✓', 'success');
+  } catch(e) {
+    showSheetsMsg('sheetsMsg', '✗ ' + e.message, true);
+  }
+}
+
+async function syncBuyTradeToSheets() {
+  if (!purchases.length && !trades.length) { showSheetsMsg('btSheetsMsg', '⚠ No activity to sync', true); return; }
+  showSheetsMsg('btSheetsMsg', 'Syncing buy/trade activity…', false);
+  try {
+    const rows = [];
+    purchases.forEach(p => {
+      const dt = new Date(p.timestamp);
+      const date = dt.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'});
+      const time = dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+      const items = p.items || [{name:p.name,qty:p.qty,price:p.price,notes:p.notes}];
+      items.forEach((item, idx) => {
+        rows.push([
+          'Purchase', date, time,
+          item.name, item.qty, Math.round(item.price),
+          item.notes || '',
+          idx === 0 ? Math.round(p.total || p.price) : '',
+          '', '', '', p.id
+        ]);
+      });
+    });
+    trades.forEach(t => {
+      const dt = new Date(t.timestamp);
+      const date = dt.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'});
+      const time = dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+      const gave = t.gaveItems || [{name:t.gaveName,price:t.gavePrice}];
+      const recv = t.recvItems || [{name:t.receivedName,val:t.receivedVal}];
+      gave.forEach((g,idx) => rows.push(['Trade - Gave',date,time,g.name,1,Math.round(g.price),'',idx===0?Math.round(t.totalGive||t.gavePrice):'','','','',t.id]));
+      recv.forEach((r,idx) => rows.push(['Trade - Received',date,time,r.name,1,Math.round(r.val),r.notes||'',idx===0?Math.round(t.totalRecv||t.receivedVal):'',idx===0?Math.round(t.creditAmt):'',idx===0?Math.round(t.balance):'',idx===0?t.paymentMethod||'':'',t.id]));
+    });
+    const result = await postToSheets('appendBuyTrade', { rows });
+    showSheetsMsg('btSheetsMsg', `✓ ${result.appended} rows synced to Buy-Trade Log`, false);
+    showToast('Activity synced to Sheet ✓', 'success');
+  } catch(e) {
+    showSheetsMsg('btSheetsMsg', '✗ ' + e.message, true);
+  }
 }
 
 // ══════════════════════════════════════════
