@@ -1051,43 +1051,70 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
         <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:var(--gold);margin-bottom:6px">⚡ Apps Script Setup</div>
         <div style="font-size:12px;color:var(--t2);line-height:1.7">Copy and paste this code into your Apps Script editor (Extensions → Apps Script), then deploy as a Web App:<br><br>
         <div style="background:var(--s3);border-radius:var(--rsm);padding:10px;font-family:'DM Mono',monospace;font-size:10px;color:var(--green);overflow-x:auto;white-space:pre;line-height:1.6">function doGet(e) {
-  const action = e.parameter.action || 'getInventory';
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('Inventory');
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0].map(h => h.toString().toLowerCase().trim());
-  const col = name => headers.indexOf(name);
+  try {
+    const action = (e && e.parameter && e.parameter.action) || 'getInventory';
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('Inventory');
+    if (!sheet) throw new Error('No sheet named Inventory found');
+    const data = sheet.getDataRange().getValues();
 
-  const rows = [];
-  const priceMap = {};
-  for (let i = 3; i < data.length; i++) {
-    const r = data[i];
-    const name = r[col('product_name')] || '';
-    if (!name) continue;
-    const short = r[col('short_name')] || name;
-    const sp = parseFloat(r[col('sticker_price')]);
-    const type = r[col('item_type')] || 'Sealed';
-    const url = r[col('tcgplayer_url')] || '';
-    const match = url.match(/\/product\/(\d+)/);
-    const idBase = match ? match[1] : name.replace(/\W/g,'').slice(0,8)+i;
-    const id = (type==='Graded'?'gr':'ev')+idBase;
-    rows.push({id,name,set:r[col('set_name')]||'',
-      short,type,qty:parseInt(r[col('quantity')])||0,
-      url,img:r[col('image_url')]||'',
-      alt_url:r[col('alt_url')]||'',
-      cardladder_url:r[col('cardladder_url')]||'',
-      notes:r[col('notes')]||''});
-    if (!isNaN(sp)) priceMap[id] = sp.toString();
+    // Auto-detect header row by finding row containing product_name
+    let headerIdx = -1;
+    for (let i = 0; i < data.length; i++) {
+      if (data[i].some(c => c.toString().toLowerCase().trim() === 'product_name')) {
+        headerIdx = i; break;
+      }
+    }
+    if (headerIdx === -1) throw new Error('Cannot find header row with product_name column');
+
+    const headers = data[headerIdx].map(h => h.toString().toLowerCase().trim());
+    const col = name => headers.indexOf(name);
+    const rows = [];
+    const priceMap = {};
+
+    // Skip header row + description row (headerIdx + 2), read all data rows
+    for (let i = headerIdx + 2; i < data.length; i++) {
+      const r = data[i];
+      const name = (r[col('product_name')] || '').toString().trim();
+      if (!name || name.toLowerCase().includes('full product name')) continue;
+      const short = (r[col('short_name')] || name).toString().trim();
+      const sp = parseFloat(r[col('sticker_price')]);
+      const type = (r[col('item_type')] || 'Sealed').toString().trim();
+      const urlRaw = (r[col('tcgplayer_url')] || '').toString().trim();
+      const imgUrl = (r[col('image_url')] || '').toString().trim();
+      const match = urlRaw.match(/\/product\/(\d+)/);
+      const idBase = match ? match[1] : name.replace(/[^a-z0-9]/gi,'').slice(0,8).toLowerCase() + i;
+      const id = (type === 'Graded' ? 'gr' : 'ev') + idBase;
+
+      rows.push({
+        id, name,
+        set:  (r[col('set_name')] || '').toString().trim(),
+        short, type,
+        qty:  parseInt(r[col('quantity')]) || 0,
+        url:  urlRaw,
+        img:  imgUrl,
+        alt_url:        (r[col('alt_url')] || '').toString().trim(),
+        cardladder_url: (r[col('cardladder_url')] || '').toString().trim(),
+        notes: (r[col('notes')] || '').toString().trim()
+      });
+      if (!isNaN(sp) && sp > 0) priceMap[id] = sp.toString();
+    }
+
+    if (rows.length === 0) throw new Error('No data rows found after header. Check your sheet has data below row ' + (headerIdx + 3));
+
+    const result = action === 'getPrices'
+      ? { prices: Object.fromEntries(rows.map(r => [r.short, priceMap[r.id]]).filter(p => p[1])) }
+      : { inventory: rows, prices: priceMap, count: rows.length };
+
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch(err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
-
-  const result = action==='getPrices'
-    ? {prices: Object.fromEntries(
-        rows.map(r=>[r.short,priceMap[r.id]]).filter(p=>p[1]))}
-    : {inventory:rows, prices:priceMap};
-
-  return ContentService
-    .createTextOutput(JSON.stringify(result))
-    .setMimeType(ContentService.MimeType.JSON);
 }</div>
         After pasting: Deploy → New deployment → Web app → Execute as: Me → Access: Anyone → Deploy → copy URL → paste in Setup.</div>
       </div>
@@ -2718,12 +2745,21 @@ function openHelpModal() {
 // No CORS proxy needed — Apps Script sets Access-Control-Allow-Origin: *
 
 async function fetchFromAppsScript(url, action) {
+  // Apps Script /exec URLs redirect — must follow redirects
   const fullUrl = url + (url.includes('?') ? '&' : '?') + 'action=' + action;
-  const res = await fetch(fullUrl);
-  if (!res.ok) throw new Error('HTTP ' + res.status + ' — check your Apps Script URL');
+  let res;
+  try {
+    res = await fetch(fullUrl, { redirect: 'follow' });
+  } catch(networkErr) {
+    throw new Error('Network error — check your internet connection and that the URL is correct');
+  }
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' — re-check deployment settings (Execute as: Me, Access: Anyone)');
   const text = await res.text();
-  try { return JSON.parse(text); }
-  catch(e) { throw new Error('Invalid response — make sure the script is deployed as a Web App'); }
+  let json;
+  try { json = JSON.parse(text); }
+  catch(e) { throw new Error('Script returned non-JSON. Open the URL in a browser to debug: ' + text.slice(0,100)); }
+  if (json.error) throw new Error('Script error: ' + json.error);
+  return json;
 }
 
 async function syncFromSheets() {
