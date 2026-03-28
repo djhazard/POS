@@ -664,12 +664,18 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
         <div class="setup-card-title" style="margin-bottom:0">🔗 Google Sheets Sync</div>
         <button onclick="openHelpModal()" style="background:var(--s3);border:1px solid var(--border);border-radius:20px;color:var(--t2);font-family:'DM Mono',monospace;font-size:10px;padding:4px 10px;cursor:pointer">? Help</button>
       </div>
-      <div class="setup-card-desc">Paste the published CSV URL of your Inventory sheet. The app will import your full inventory (including sticker prices) from that sheet.</div>
-      <div style="background:var(--s3);border-radius:var(--rsm);padding:10px 12px;margin-bottom:10px;font-size:11px;color:var(--t2);line-height:1.6">
-        <strong style="color:var(--gold)">One-time setup:</strong> In Google Sheets → File → Share → Publish to web → choose your Inventory sheet tab → select CSV → click Publish → copy the URL and paste below.
+      <div class="setup-card-desc">Connect your Google Sheet via a free Apps Script web app — the most reliable way to sync inventory and prices with no CORS issues.</div>
+      <div style="background:var(--s3);border-radius:var(--rsm);padding:10px 12px;margin-bottom:10px;font-size:11px;color:var(--t2);line-height:1.8">
+        <strong style="color:var(--gold)">One-time setup (5 min):</strong><br>
+        1. Open your Google Sheet workbook<br>
+        2. Click <strong style="color:var(--text)">Extensions → Apps Script</strong><br>
+        3. Delete any existing code and paste the script from the Help section<br>
+        4. Click <strong style="color:var(--text)">Deploy → New deployment → Web app</strong><br>
+        5. Set "Execute as: Me" and "Who has access: Anyone"<br>
+        6. Click Deploy, copy the Web App URL, paste below
       </div>
-      <label class="lbl">Inventory Sheet Published CSV URL</label>
-      <input type="text" id="sheetsUrlInput" placeholder="https://docs.google.com/spreadsheets/d/…/pub?gid=0&single=true&output=csv" value="">
+      <label class="lbl">Apps Script Web App URL</label>
+      <input type="text" id="sheetsUrlInput" placeholder="https://script.google.com/macros/s/…/exec" value="">
       <div style="display:flex;gap:8px;margin-top:10px">
         <button class="btn btn-gold" onclick="syncFromSheets()" style="flex:2">↻ Sync Inventory from Sheet</button>
         <button class="btn btn-ghost btn-sm" onclick="syncPricesOnly()" style="flex:1;margin-top:0;font-size:11px">Prices Only</button>
@@ -768,16 +774,18 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
               <input type="text" id="bt-p-notes" placeholder="Condition, etc." style="padding:5px 7px;font-size:11px">
             </div>
           </div>
-          <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
-            <div id="bt-p-photo-preview" style="width:40px;height:54px;background:var(--s3);border-radius:var(--rsm);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;overflow:hidden;cursor:pointer" onclick="document.getElementById('bt-p-photo-file').click()">📷</div>
-            <input type="file" id="bt-p-photo-file" class="file-hidden" accept="image/*" onchange="btPurchasePhoto(event)">
-            <button class="btn btn-ghost btn-sm" onclick="btAddPurchaseItem()" style="flex:1;margin-top:0">+ Add Item</button>
-          </div>
+          <button class="btn btn-ghost btn-sm" onclick="btAddPurchaseItem()" style="margin-top:8px">+ Add Item to Transaction</button>
         </div>
 
         <div id="bt-p-total-row" style="display:none;text-align:right;font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);margin-bottom:10px">Total: <span id="bt-p-total"></span></div>
         <label class="lbl">Transaction Notes</label>
         <input type="text" id="bt-p-txn-notes" placeholder="Seller, location, etc.">
+        <label class="lbl">Transaction Photo (optional)</label>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+          <div id="bt-p-photo-preview" style="width:52px;height:70px;background:var(--s3);border-radius:var(--rsm);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;overflow:hidden;cursor:pointer" onclick="document.getElementById('bt-p-photo-file').click()">📷</div>
+          <input type="file" id="bt-p-photo-file" class="file-hidden" accept="image/*" onchange="btPurchasePhoto(event)">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('bt-p-photo-file').click()" style="flex:1;margin-top:0">Tap to add photo</button>
+        </div>
         <button class="btn btn-gold" style="margin-top:12px" onclick="logPurchase()">✓ Log Purchase Transaction</button>
       </div>
     </div>
@@ -818,11 +826,7 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
               <input type="text" id="bt-t-recv-notes" placeholder="Condition, grade" style="padding:5px 7px;font-size:11px">
             </div>
           </div>
-          <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
-            <div id="bt-t-recv-photo-preview" style="width:40px;height:54px;background:var(--s3);border-radius:var(--rsm);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;overflow:hidden;cursor:pointer" onclick="document.getElementById('bt-t-recv-photo-file').click()">📷</div>
-            <input type="file" id="bt-t-recv-photo-file" class="file-hidden" accept="image/*" onchange="btRecvPhoto(event)">
-            <button class="btn btn-ghost btn-sm" onclick="btAddRecvItem()" style="flex:1;margin-top:0">+ Add Item</button>
-          </div>
+          <button class="btn btn-ghost btn-sm" onclick="btAddRecvItem()" style="margin-top:8px">+ Add Item to Trade</button>
         </div>
         <div id="bt-t-recv-total-row" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--t2);margin-bottom:8px;display:none">
           Their total stated value: <span id="bt-t-recv-total" style="color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:16px"></span>
@@ -867,6 +871,12 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
 
         <label class="lbl">Transaction Notes</label>
         <input type="text" id="bt-t-notes" placeholder="Optional details">
+        <label class="lbl">Transaction Photo (optional)</label>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+          <div id="bt-t-photo-preview" style="width:52px;height:70px;background:var(--s3);border-radius:var(--rsm);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;overflow:hidden;cursor:pointer" onclick="document.getElementById('bt-t-photo-file').click()">📷</div>
+          <input type="file" id="bt-t-photo-file" class="file-hidden" accept="image/*" onchange="btTradePhoto(event)">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('bt-t-photo-file').click()" style="flex:1;margin-top:0">Tap to add photo</button>
+        </div>
         <button class="btn btn-gold" style="margin-top:14px" onclick="logTrade()">✓ Complete Trade</button>
       </div>
     </div>
@@ -1035,6 +1045,51 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
       <div style="background:var(--s2);border-radius:var(--r);padding:14px">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:var(--gold);margin-bottom:6px">⚙️ Setup</div>
         <div style="font-size:12px;color:var(--t2);line-height:1.7"><strong style="color:var(--text)">Google Sheets Sync:</strong> Publish your Inventory sheet as CSV, paste the URL, tap Sync. Replaces inventory and loads sticker prices.<br><br><strong style="color:var(--text)">Import XLSX:</strong> Upload the template file directly from your device.<br><br><strong style="color:var(--text)">POS checkboxes:</strong> Check/uncheck items in Set Sticker Prices to control what appears on the POS screen — useful for limiting to your show inventory.<br><br><strong style="color:var(--text)">Export Sales:</strong> Access via the Sales or Revenue stat cards. Exports a CSV of all transactions. <em>Export & Clear Log</em> resets for a new session.<br><br><strong style="color:var(--text)">Export Activity:</strong> Exports all purchases and trades from the Buy/Trade tab.</div>
+      </div>
+
+      <div style="background:var(--s2);border-radius:var(--r);padding:14px">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:var(--gold);margin-bottom:6px">⚡ Apps Script Setup</div>
+        <div style="font-size:12px;color:var(--t2);line-height:1.7">Copy and paste this code into your Apps Script editor (Extensions → Apps Script), then deploy as a Web App:<br><br>
+        <div style="background:var(--s3);border-radius:var(--rsm);padding:10px;font-family:'DM Mono',monospace;font-size:10px;color:var(--green);overflow-x:auto;white-space:pre;line-height:1.6">function doGet(e) {
+  const action = e.parameter.action || 'getInventory';
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('Inventory');
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0].map(h => h.toString().toLowerCase().trim());
+  const col = name => headers.indexOf(name);
+
+  const rows = [];
+  const priceMap = {};
+  for (let i = 3; i < data.length; i++) {
+    const r = data[i];
+    const name = r[col('product_name')] || '';
+    if (!name) continue;
+    const short = r[col('short_name')] || name;
+    const sp = parseFloat(r[col('sticker_price')]);
+    const type = r[col('item_type')] || 'Sealed';
+    const url = r[col('tcgplayer_url')] || '';
+    const match = url.match(/\/product\/(\d+)/);
+    const idBase = match ? match[1] : name.replace(/\W/g,'').slice(0,8)+i;
+    const id = (type==='Graded'?'gr':'ev')+idBase;
+    rows.push({id,name,set:r[col('set_name')]||'',
+      short,type,qty:parseInt(r[col('quantity')])||0,
+      url,img:r[col('image_url')]||'',
+      alt_url:r[col('alt_url')]||'',
+      cardladder_url:r[col('cardladder_url')]||'',
+      notes:r[col('notes')]||''});
+    if (!isNaN(sp)) priceMap[id] = sp.toString();
+  }
+
+  const result = action==='getPrices'
+    ? {prices: Object.fromEntries(
+        rows.map(r=>[r.short,priceMap[r.id]]).filter(p=>p[1]))}
+    : {inventory:rows, prices:priceMap};
+
+  return ContentService
+    .createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}</div>
+        After pasting: Deploy → New deployment → Web app → Execute as: Me → Access: Anyone → Deploy → copy URL → paste in Setup.</div>
       </div>
 
       <div style="background:var(--s2);border-radius:var(--r);padding:14px">
@@ -2312,8 +2367,7 @@ function renderQRPreviews() {
 let btPurchaseItems = [];   // [{name, qty, price, notes, photo}]
 let btGiveItems     = [];   // [{id, name, price}]
 let btRecvItems     = [];   // [{name, val, notes, photo}]
-let btRecvPhotoData = '';
-let btCurrentRecvPhoto = '';
+let btTradePhotoData = '';
 
 function setBTMode(mode) {
   btMode = mode;
@@ -2396,12 +2450,15 @@ function logPurchase() {
     id: 'pur_' + Date.now(),
     timestamp: new Date().toISOString(),
     items: [...btPurchaseItems],
-    total, notes: txnNotes
+    total, notes: txnNotes,
+    photo: btPurchasePhotoData
   });
   save();
-  btPurchaseItems = [];
+  btPurchaseItems = []; btPurchasePhotoData = '';
   renderBTStagedPurchase();
   if (document.getElementById('bt-p-txn-notes')) document.getElementById('bt-p-txn-notes').value = '';
+  const pp = document.getElementById('bt-p-photo-preview'); if(pp) pp.innerHTML = '📷';
+  const pf = document.getElementById('bt-p-photo-file'); if(pf) pf.value = '';
   renderBTLogs();
   showToast('Purchase logged ✓', 'success');
 }
@@ -2419,12 +2476,14 @@ function btAddGiveItem() {
 
 function btRemoveGiveItem(idx) { btGiveItems.splice(idx, 1); renderBTStagedTrade(); btTradeCalc(); }
 
-function btRecvPhoto(event) {
+function btRecvPhoto(event) {} // removed — photos are per-transaction now
+
+function btTradePhoto(event) {
   const file = event.target.files[0]; if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    btCurrentRecvPhoto = e.target.result;
-    const p = document.getElementById('bt-t-recv-photo-preview');
+    btTradePhotoData = e.target.result;
+    const p = document.getElementById('bt-t-photo-preview');
     if (p) p.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;
   };
   reader.readAsDataURL(file);
@@ -2435,13 +2494,11 @@ function btAddRecvItem() {
   const val   = parseFloat(document.getElementById('bt-t-recv-val')?.value) || 0;
   const notes = (document.getElementById('bt-t-recv-notes')?.value || '').trim();
   if (!name) { showToast('Received item name required', 'error'); return; }
-  btRecvItems.push({ name, val, notes, photo: btCurrentRecvPhoto });
-  btCurrentRecvPhoto = '';
+  btRecvItems.push({ name, val, notes });
   document.getElementById('bt-t-recv-name').value  = '';
   document.getElementById('bt-t-recv-val').value   = '';
   document.getElementById('bt-t-recv-notes').value = '';
-  document.getElementById('bt-t-recv-photo-preview').innerHTML = '📷';
-  document.getElementById('bt-t-recv-photo-file').value = '';
+
   renderBTStagedTrade();
   btTradeCalc();
   showToast(`${name} added`, 'success');
@@ -2535,7 +2592,8 @@ function logTrade() {
     recvItems:  [...btRecvItems],
     totalGive, totalRecv, creditType: btCreditType,
     creditVal: creditV, creditAmt, balance,
-    paymentMethod: btSelectedPayment, notes
+    paymentMethod: btSelectedPayment, notes,
+    photo: btTradePhotoData
   });
 
   // Deduct each given item from inventory
@@ -2545,7 +2603,9 @@ function logTrade() {
   });
 
   save();
-  btGiveItems = []; btRecvItems = []; btSelectedPayment = ''; btCurrentRecvPhoto = '';
+  btGiveItems = []; btRecvItems = []; btSelectedPayment = ''; btTradePhotoData = '';
+  const tpp = document.getElementById('bt-t-photo-preview'); if(tpp) tpp.innerHTML = '📷';
+  const tpf = document.getElementById('bt-t-photo-file'); if(tpf) tpf.value = '';
   if (document.getElementById('bt-t-credit-val')) document.getElementById('bt-t-credit-val').value = '';
   if (document.getElementById('bt-t-notes')) document.getElementById('bt-t-notes').value = '';
   if (document.getElementById('bt-t-payment-selected')) document.getElementById('bt-t-payment-selected').textContent = '';
@@ -2579,6 +2639,7 @@ function renderBTLogs() {
             <span class="bt-log-type purchase">Purchase</span>
             <div class="bt-log-amount purchase">-${fmtMoney(p.total||p.price)}</div>
           </div>
+          ${p.photo?`<img src="${p.photo}" style="width:60px;height:80px;object-fit:cover;border-radius:6px;margin:6px 0;display:block">`:''}
           <div class="bt-log-detail" style="margin-top:6px">${itemLines}</div>
           ${p.notes?`<div class="bt-log-detail" style="margin-top:4px;color:var(--t3)">${p.notes}</div>`:''}
           <div class="bt-log-date">${dateStr}</div>
@@ -2604,6 +2665,7 @@ function renderBTLogs() {
             <span class="bt-log-type trade">Trade</span>
             <div class="bt-log-amount trade">${t.balance > 0 ? '+'+fmtMoney(t.balance) : 'Even'}</div>
           </div>
+          ${t.photo?`<img src="${t.photo}" style="width:60px;height:80px;object-fit:cover;border-radius:6px;margin:6px 0;display:block">`:''}
           <div class="bt-log-detail" style="margin-top:6px">
             <strong style="color:var(--text)">Gave:</strong> ${gaveLines}<br>
             <strong style="color:var(--text)">Received:</strong> ${recvLines}<br>
@@ -2649,75 +2711,39 @@ function openHelpModal() {
 }
 
 // ══════════════════════════════════════════
-// GOOGLE SHEETS FULL SYNC
+// GOOGLE SHEETS SYNC (via Apps Script)
 // ══════════════════════════════════════════
+
+// The Apps Script returns JSON: { inventory: [...], prices: {...} }
+// No CORS proxy needed — Apps Script sets Access-Control-Allow-Origin: *
+
+async function fetchFromAppsScript(url, action) {
+  const fullUrl = url + (url.includes('?') ? '&' : '?') + 'action=' + action;
+  const res = await fetch(fullUrl);
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' — check your Apps Script URL');
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch(e) { throw new Error('Invalid response — make sure the script is deployed as a Web App'); }
+}
+
 async function syncFromSheets() {
   const url = document.getElementById('sheetsUrlInput').value.trim();
   const msg = document.getElementById('sheetsMsg');
-  if (!url) { msg.innerHTML = '<span style="color:var(--red)">Paste your published CSV URL first.</span>'; return; }
-  msg.innerHTML = '<span style="color:var(--t2)">Fetching inventory from Sheet…</span>';
-
+  if (!url) { msg.innerHTML = '<span style="color:var(--red)">Paste your Apps Script Web App URL first.</span>'; return; }
+  msg.innerHTML = '<span style="color:var(--t2)">Fetching inventory from Google Sheet…</span>';
   try {
-    const fetchUrl = 'https://corsproxy.io/?url=' + encodeURIComponent(url);
-    const res = await fetch(fetchUrl);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const text = await res.text();
-    const lines = text.split('\n').filter(l => l.trim());
-    if (lines.length < 2) throw new Error('Sheet appears empty');
+    const data = await fetchFromAppsScript(url, 'getInventory');
+    if (!data.inventory || !data.inventory.length) throw new Error('No inventory rows returned');
 
-    // Parse CSV header
-    const parseCSVLine = line => {
-      const result = []; let cur = ''; let inQ = false;
-      for (let i = 0; i < line.length; i++) {
-        if (line[i] === '"') { inQ = !inQ; }
-        else if (line[i] === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
-        else { cur += line[i]; }
-      }
-      result.push(cur.trim()); return result;
-    };
+    inventory = data.inventory;
+    if (data.prices) Object.assign(prices, data.prices);
 
-    const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().replace(/['"]/g,'').trim());
-    const col = name => headers.indexOf(name);
-
-    const parsed = [];
-    for (let i = 1; i < lines.length; i++) {
-      const r = parseCSVLine(lines[i]);
-      const name = (r[col('product_name')] || '').trim();
-      if (!name || name.toLowerCase().includes('full product name')) continue;
-      const urlRaw = (r[col('tcgplayer_url')] || '').trim();
-      const match  = urlRaw.match(/\/product\/(\d+)/);
-      const itemType = (r[col('item_type')] || 'Sealed').trim();
-      const idBase = match ? match[1] : name.replace(/\W/g,'').slice(0,8).toLowerCase() + i;
-      const item = {
-        id: (itemType==='Graded'?'gr':'ev') + idBase,
-        name,
-        set:   (r[col('set_name')] || '').trim(),
-        short: (r[col('short_name')] || name).trim(),
-        type:  itemType,
-        qty:   parseInt(r[col('quantity')]) || 0,
-        url:   urlRaw,
-        img:   (r[col('image_url')] || '').trim(),
-        alt_url:        (r[col('alt_url')] || '').trim(),
-        cardladder_url: (r[col('cardladder_url')] || '').trim(),
-        notes: (r[col('notes')] || '').trim(),
-      };
-      parsed.push(item);
-      // Load sticker price if present
-      const sp = r[col('sticker_price')];
-      if (sp !== undefined && sp !== '' && !isNaN(parseFloat(sp))) {
-        prices[item.id] = parseFloat(sp).toString();
-      }
-    }
-
-    if (!parsed.length) throw new Error('No valid rows found — check column headers match the template');
-
-    inventory = parsed;
     localStorage.setItem('ktcg_sheetsUrl', url);
     save();
     localStorage.setItem('ktcg_prices', JSON.stringify(prices));
     renderPOS(); renderSetup(); renderInventory(); updateStats();
-    msg.innerHTML = `<span style="color:var(--green)">✓ Synced ${parsed.length} items from Google Sheet.</span>`;
-    showToast(`✓ ${parsed.length} items synced`, 'success');
+    msg.innerHTML = `<span style="color:var(--green)">✓ Synced ${inventory.length} items from Google Sheet.</span>`;
+    showToast(`✓ ${inventory.length} items synced`, 'success');
   } catch(e) {
     msg.innerHTML = `<span style="color:var(--red)">Error: ${e.message}</span>`;
   }
@@ -2726,28 +2752,18 @@ async function syncFromSheets() {
 async function syncPricesOnly() {
   const url = document.getElementById('sheetsUrlInput').value.trim();
   const msg = document.getElementById('sheetsMsg');
-  if (!url) { msg.innerHTML = '<span style="color:var(--red)">Paste your published CSV URL first.</span>'; return; }
+  if (!url) { msg.innerHTML = '<span style="color:var(--red)">Paste your Apps Script URL first.</span>'; return; }
   msg.innerHTML = '<span style="color:var(--t2)">Syncing prices…</span>';
   try {
-    const fetchUrl = 'https://corsproxy.io/?url=' + encodeURIComponent(url);
-    const res = await fetch(fetchUrl);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const text = await res.text();
-    const lines = text.split('\n').filter(l => l.trim());
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/['"]/g,''));
-    const shortIdx = headers.findIndex(h => h.includes('short'));
-    const priceIdx = headers.findIndex(h => h.includes('sticker') || h.includes('price'));
-    if (shortIdx===-1||priceIdx===-1) throw new Error('Need short_name and sticker_price columns');
+    const data = await fetchFromAppsScript(url, 'getPrices');
+    if (!data.prices) throw new Error('No prices returned');
     let matched = 0;
-    for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g,''));
-      const sn = cols[shortIdx]; const p = parseFloat(cols[priceIdx]);
-      if (!sn || isNaN(p)) continue;
-      const item = inventory.find(inv => (inv.short||inv.name).toLowerCase() === sn.toLowerCase());
-      if (item) { prices[item.id] = p.toString(); matched++; }
-    }
-    localStorage.setItem('ktcg_prices', JSON.stringify(prices));
+    Object.entries(data.prices).forEach(([shortName, price]) => {
+      const item = inventory.find(i => (i.short||i.name).toLowerCase() === shortName.toLowerCase());
+      if (item) { prices[item.id] = price.toString(); matched++; }
+    });
     localStorage.setItem('ktcg_sheetsUrl', url);
+    localStorage.setItem('ktcg_prices', JSON.stringify(prices));
     renderPriceList(); renderPOS();
     msg.innerHTML = `<span style="color:var(--green)">✓ ${matched} prices synced.</span>`;
     showToast(`✓ ${matched} prices synced`, 'success');
