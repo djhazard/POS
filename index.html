@@ -175,6 +175,7 @@ body::before{display:none;}
 }
 .type-badge.sealed{background:rgba(91,141,238,.2);color:var(--blue);border:1px solid rgba(91,141,238,.3);}
 .type-badge.graded{background:rgba(245,200,66,.15);color:var(--gold);border:1px solid rgba(245,200,66,.25);}
+.type-badge.singles{background:rgba(61,214,140,.15);color:var(--green);border:1px solid rgba(61,214,140,.25);}
 .prod-info{padding:10px;flex:1;display:flex;flex-direction:column;gap:8px;}
 .prod-name{
   font-size:13px;font-weight:600;line-height:1.35;
@@ -680,10 +681,25 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
         <button class="btn btn-gold" onclick="syncFromSheets()" style="flex:2">↻ Sync Inventory from Sheet</button>
         <button class="btn btn-ghost btn-sm" onclick="syncPricesOnly()" style="flex:1;margin-top:0;font-size:11px">Prices Only</button>
       </div>
-      <div style="margin-top:8px">
-        <button class="btn btn-ghost btn-sm" onclick="syncInventorySnapshotToSheets()" style="font-size:11px;color:var(--green);border-color:rgba(61,214,140,.3)">↑ Push Inventory Snapshot to Sheet</button>
-      </div>
       <div id="sheetsMsg" style="margin-top:8px;font-size:12px;color:var(--t2)"></div>
+    </div>
+
+    <!-- Export & End Show -->
+    <div class="setup-card">
+      <div class="setup-card-title">📤 Export Data</div>
+      <div class="setup-card-desc">Download current data as CSV files to your device.</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+        <button class="btn btn-ghost btn-sm" onclick="exportSalesCSV()" style="text-align:left">⬇ Sales Log CSV</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportInventoryCSV()" style="text-align:left">⬇ Inventory Snapshot CSV</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportBuyTradeCSV()" style="text-align:left">⬇ Buy/Trade Activity CSV</button>
+      </div>
+    </div>
+
+    <div class="setup-card" style="border-color:rgba(232,85,85,.3)">
+      <div class="setup-card-title" style="color:var(--red)">🏁 End Show / End Day</div>
+      <div class="setup-card-desc">Syncs all data to Google Sheets, then clears all transaction logs. Use this at the end of each show or day.</div>
+      <div id="endShowMsg" style="margin-bottom:8px;font-size:12px;color:var(--t2)"></div>
+      <button class="btn btn-red" onclick="promptEndShow()">End Show / End Day</button>
     </div>
 
     <!-- Sort Order -->
@@ -769,7 +785,11 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
               <input class="disc-input" type="number" id="bt-p-qty" value="1" min="1" style="width:48px !important">
             </div>
             <div style="flex:1">
-              <label class="lbl" style="margin-top:0">Price Paid $</label>
+              <label class="lbl" style="margin-top:0">Value $</label>
+              <input class="disc-input" type="number" id="bt-p-value" placeholder="0" min="0" style="width:48px !important">
+            </div>
+            <div style="flex:1">
+              <label class="lbl" style="margin-top:0">Paid $</label>
               <input class="disc-input" type="number" id="bt-p-price" placeholder="0" min="0" style="width:48px !important">
             </div>
             <div style="flex:2">
@@ -789,7 +809,7 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
           <input type="file" id="bt-p-photo-file" class="file-hidden" accept="image/*" onchange="btPurchasePhoto(event)">
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('bt-p-photo-file').click()" style="flex:1;margin-top:0">Tap to add photo</button>
         </div>
-        <button class="btn btn-gold" style="margin-top:12px" onclick="logPurchase()">✓ Log Purchase Transaction</button>
+        <button class="btn btn-gold" style="margin-top:12px" onclick="logPurchase()">✓ Complete Purchase</button>
       </div>
     </div>
 
@@ -802,11 +822,11 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
         <!-- GIVING side -->
         <div class="sec-label" style="margin-top:8px">You Are Giving (from your inventory)</div>
         <div id="bt-t-giving-staged" style="margin-bottom:8px"></div>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-          <select id="bt-t-give-item" style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;padding:8px 10px;outline:none;-webkit-appearance:none">
+        <div>
+          <select id="bt-t-give-item" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:var(--rsm);color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;padding:8px 10px;outline:none;-webkit-appearance:none;margin-bottom:8px">
             <option value="">— Select item —</option>
           </select>
-          <button class="btn btn-ghost btn-sm" onclick="btAddGiveItem()" style="margin-top:0;flex-shrink:0">+ Add</button>
+          <button class="btn btn-ghost btn-sm" onclick="btAddGiveItem()" style="margin-top:0">+ Add to Trade</button>
         </div>
         <div id="bt-t-give-total-row" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--t2);margin-bottom:8px;display:none">
           Your total value giving: <span id="bt-t-give-total" style="color:var(--gold);font-family:'Bebas Neue',sans-serif;font-size:16px"></span>
@@ -819,12 +839,23 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
           <div class="sec-label" style="margin-top:0">Add Received Item</div>
           <label class="lbl" style="margin-top:4px">Item Name *</label>
           <input type="text" id="bt-t-recv-name" placeholder="e.g. Umbreon VMAX PSA 9">
-          <div style="display:flex;gap:8px;margin-top:8px;align-items:flex-end">
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:flex-end;flex-wrap:wrap">
             <div>
               <label class="lbl" style="margin-top:0">Stated Value $</label>
-              <input class="disc-input" type="number" id="bt-t-recv-val" placeholder="0" min="0" style="width:48px !important">
+              <input class="disc-input" type="number" id="bt-t-recv-val" placeholder="0" min="0" style="width:48px !important" oninput="btUpdateRecvCredit()">
             </div>
-            <div style="flex:2">
+            <div>
+              <label class="lbl" style="margin-top:0">Credit</label>
+              <input class="disc-input" type="number" id="bt-t-recv-credit" placeholder="0" min="0" style="width:48px !important">
+            </div>
+            <div>
+              <label class="lbl" style="margin-top:0">Type</label>
+              <div style="display:flex;gap:3px">
+                <button class="disc-type-btn active" id="bt-t-recv-credit-dollar" onclick="btSetRecvCreditType('$')">$</button>
+                <button class="disc-type-btn" id="bt-t-recv-credit-pct" onclick="btSetRecvCreditType('%')">%</button>
+              </div>
+            </div>
+            <div style="flex:2;min-width:80px">
               <label class="lbl" style="margin-top:0">Notes</label>
               <input type="text" id="bt-t-recv-notes" placeholder="Condition, grade" style="padding:5px 7px;font-size:11px">
             </div>
@@ -835,28 +866,14 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
           Their total stated value: <span id="bt-t-recv-total" style="color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:16px"></span>
         </div>
 
-        <!-- Credit -->
-        <div class="sec-label" style="margin-top:10px">Trade Credit You Are Giving</div>
-        <div style="display:flex;gap:8px;align-items:flex-end;margin-top:4px">
-          <div>
-            <label class="lbl" style="margin-top:0">Amount or %</label>
-            <input class="disc-input" type="number" id="bt-t-credit-val" placeholder="0" min="0" oninput="btTradeCalc()" style="width:48px !important">
-          </div>
-          <div>
-            <label class="lbl" style="margin-top:0">Type</label>
-            <div style="display:flex;gap:4px">
-              <button class="disc-type-btn active" id="bt-t-credit-dollar" onclick="btSetCreditType('$')">$</button>
-              <button class="disc-type-btn" id="bt-t-credit-pct" onclick="btSetCreditType('%')">%</button>
-            </div>
-          </div>
-        </div>
+
 
         <!-- Summary -->
         <div id="bt-trade-summary" style="background:var(--s3);border-radius:var(--r);padding:14px;margin-top:14px;display:none">
           <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Trade Summary</div>
           <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:var(--t2)"><span>Your items value</span><span id="bt-ts-give-val" style="color:var(--text)"></span></div>
           <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:var(--t2)"><span>Their items value</span><span id="bt-ts-recv-val" style="color:var(--text)"></span></div>
-          <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:var(--t2)"><span>Credit you give</span><span id="bt-ts-credit" style="color:var(--green)"></span></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:var(--t2)"><span>Total credit given</span><span id="bt-ts-credit" style="color:var(--green)"></span></div>
           <div style="display:flex;justify-content:space-between;padding:6px 0 0;font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--text);border-top:1px solid var(--border);margin-top:6px"><span>Cash/Other Due to You</span><span id="bt-ts-balance" style="color:var(--gold)"></span></div>
         </div>
 
@@ -885,12 +902,7 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
     </div>
 
     <!-- ── LOGS ── -->
-    <div id="btSheetsMsg" style="margin-top:4px;margin-bottom:8px;font-size:12px;color:var(--t2)"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0;margin-bottom:8px">
-      <div class="sec-label" style="margin:0">Purchase Log</div>
-      <button class="btn btn-ghost btn-sm" onclick="exportBuyTradeCSV()" style="margin-top:0;font-size:11px">⬇ Export CSV</button>
-      <button class="btn btn-ghost btn-sm" onclick="syncBuyTradeToSheets()" style="margin-top:0;font-size:11px;color:var(--green);border-color:rgba(61,214,140,.3)">↑ Sync to Sheet</button>
-    </div>
+    <div class="sec-label" style="margin-top:4px;margin-bottom:8px">Purchase Log</div>
     <div id="bt-purchase-log"></div>
 
     <div class="sec-label" style="margin-top:16px">Trade Log</div>
@@ -958,16 +970,7 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
     <button onclick="document.getElementById('logOverlay').classList.remove('open')" style="position:absolute;top:16px;right:16px;background:var(--s3);border:1px solid var(--border);border-radius:50%;width:32px;height:32px;color:var(--t2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;">✕</button>
     <div class="modal-title">Sales Log</div>
     <div class="modal-sub" id="logModalSub">Tap a transaction to delete it</div>
-    <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
-      <button class="btn btn-ghost btn-sm" onclick="exportSalesCSV()" style="flex:1;font-size:11px;">⬇ CSV</button>
-      <button class="btn btn-ghost btn-sm" onclick="syncSalesToSheets()" style="flex:1;font-size:11px;color:var(--green);border-color:rgba(61,214,140,.3)">↑ Sync to Sheet</button>
-    </div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-      <button class="btn btn-ghost btn-sm" onclick="exportInventoryCSV()" style="flex:1;font-size:11px;">⬇ Inventory CSV</button>
-      <button class="btn btn-ghost btn-sm" onclick="syncInventorySnapshotToSheets()" style="flex:1;font-size:11px;color:var(--green);border-color:rgba(61,214,140,.3)">↑ Inventory Snapshot</button>
-    </div>
     <div id="logSheetsMsg" style="margin-bottom:10px;font-size:12px;color:var(--t2)"></div>
-    <button class="btn btn-red" style="margin-bottom:16px;font-size:13px" onclick="promptClearLog()">⚠ Export & Clear Log</button>
     <div id="logList"></div>
   </div>
 </div>
@@ -980,6 +983,34 @@ input[type=file]{padding:8px 12px;color:var(--t2);font-size:12px;}
     <div style="display:flex;gap:8px;margin-top:16px;">
       <button class="btn btn-red" onclick="confirmClearLog()">Export & Clear</button>
       <button class="btn btn-ghost" onclick="document.getElementById('clearLogOverlay').classList.remove('open')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── END SHOW CONFIRM ── -->
+<div class="overlay" id="endShowOverlay">
+  <div class="modal">
+    <div class="modal-title" style="color:var(--red)">⚠ End Show / End Day</div>
+    <div class="modal-sub">This will sync Sales, Buy/Trade Activity, and an Inventory Snapshot to Google Sheets, then <strong>permanently clear all transaction logs</strong>. Inventory quantities are NOT reset.</div>
+    <div style="background:var(--s3);border-radius:var(--rsm);padding:10px 12px;margin:12px 0;font-size:11px;color:var(--t2);line-height:1.6">
+      If the Google Sheets sync fails, logs will <strong>not</strong> be cleared and you will be given the option to clear without syncing.
+    </div>
+    <div id="endShowProgress" style="font-size:12px;color:var(--t2);margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-red" id="endShowConfirmBtn" onclick="confirmEndShow()">Sync &amp; Clear All</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('endShowOverlay').classList.remove('open')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── BT DELETE CONFIRM ── -->
+<div class="overlay" id="btConfirmOverlay">
+  <div class="modal">
+    <div class="modal-title" id="btConfirmTitle">Delete Entry?</div>
+    <div class="modal-sub" id="btConfirmSub">This cannot be undone.</div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-red" onclick="confirmBTDelete()">Delete</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('btConfirmOverlay').classList.remove('open')">Cancel</button>
     </div>
   </div>
 </div>
@@ -1308,11 +1339,13 @@ function exportSalesCSV() {
 function exportInventoryCSV() {
   if (!inventory.length) { showToast('No inventory to export', 'error'); return; }
 
+  const snapDate = new Date().toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'});
   const rows = [];
-  rows.push(['Short Name', 'Product Name', 'Set', 'Type', 'Qty', 'Sticker Price', 'Notes']);
+  rows.push(['Snapshot Date', 'Short Name', 'Product Name', 'Set', 'Type', 'Qty', 'Sticker Price', 'Notes']);
 
   applySortOrder(inventory).forEach(item => {
     rows.push([
+      snapDate,
       item.short || item.name,
       item.name,
       item.set || '',
@@ -2414,11 +2447,13 @@ function renderQRPreviews() {
 // BUY / TRADE
 // ══════════════════════════════════════════
 
-// Staged item arrays (in-progress transaction)
-let btPurchaseItems = [];   // [{name, qty, price, notes, photo}]
-let btGiveItems     = [];   // [{id, name, price}]
-let btRecvItems     = [];   // [{name, val, notes, photo}]
+let btPurchaseItems = [];
+let btGiveItems     = [];
+let btRecvItems     = [];
 let btTradePhotoData = '';
+let btRecvCreditType = '$';
+let pendingBTDeleteId = null;
+let pendingBTDeleteType = null; // 'purchase' or 'trade'
 
 function setBTMode(mode) {
   btMode = mode;
@@ -2433,12 +2468,13 @@ function setBTMode(mode) {
 function populateBTGiveSelect() {
   const sel = document.getElementById('bt-t-give-item');
   if (!sel) return;
-  const active = inventory.filter(i => i.qty > 0);
   sel.innerHTML = '<option value="">— Select item —</option>' +
-    active.map(i => `<option value="${i.id}">${i.short||i.name} ×${i.qty}${prices[i.id]?' — '+fmtMoney(parseFloat(prices[i.id])):''}</option>`).join('');
+    inventory.filter(i => i.qty > 0).map(i =>
+      `<option value="${i.id}">${i.short||i.name} ×${i.qty}${prices[i.id]?' — '+fmtMoney(parseFloat(prices[i.id])):''}</option>`
+    ).join('');
 }
 
-// ── PURCHASE: add item to staging ──
+// ── PURCHASE ──
 function btPurchasePhoto(event) {
   const file = event.target.files[0]; if (!file) return;
   const reader = new FileReader();
@@ -2454,48 +2490,42 @@ function btAddPurchaseItem() {
   const name  = (document.getElementById('bt-p-name')?.value || '').trim();
   const qty   = parseInt(document.getElementById('bt-p-qty')?.value) || 1;
   const price = parseFloat(document.getElementById('bt-p-price')?.value) || 0;
+  const value = parseFloat(document.getElementById('bt-p-value')?.value) || 0;
   const notes = (document.getElementById('bt-p-notes')?.value || '').trim();
   if (!name) { showToast('Item name required', 'error'); return; }
-  btPurchaseItems.push({ name, qty, price, notes, photo: btPurchasePhotoData });
-  btPurchasePhotoData = '';
-  // Clear item fields
-  document.getElementById('bt-p-name').value  = '';
-  document.getElementById('bt-p-qty').value   = '1';
+  btPurchaseItems.push({ name, qty, price, value, notes });
+  document.getElementById('bt-p-name').value = '';
+  document.getElementById('bt-p-qty').value  = '1';
   document.getElementById('bt-p-price').value = '';
+  document.getElementById('bt-p-value').value = '';
   document.getElementById('bt-p-notes').value = '';
-  document.getElementById('bt-p-photo-preview').innerHTML = '📷';
-  document.getElementById('bt-p-photo-file').value = '';
   renderBTStagedPurchase();
   showToast(`${name} added`, 'success');
 }
 
-function btRemovePurchaseItem(idx) {
-  btPurchaseItems.splice(idx, 1);
-  renderBTStagedPurchase();
-}
+function btRemovePurchaseItem(idx) { btPurchaseItems.splice(idx,1); renderBTStagedPurchase(); }
 
 function renderBTStagedPurchase() {
   const el = document.getElementById('bt-p-staged');
   const totRow = document.getElementById('bt-p-total-row');
   if (!el) return;
-  if (!btPurchaseItems.length) { el.innerHTML = ''; if(totRow) totRow.style.display='none'; return; }
+  if (!btPurchaseItems.length) { el.innerHTML=''; if(totRow) totRow.style.display='none'; return; }
   const total = btPurchaseItems.reduce((s,i) => s + i.price * i.qty, 0);
   el.innerHTML = btPurchaseItems.map((item, idx) => `
     <div style="display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--border);border-radius:var(--rsm);padding:8px 10px;margin-bottom:6px">
-      ${item.photo ? `<img src="${item.photo}" style="width:32px;height:43px;object-fit:cover;border-radius:4px;flex-shrink:0">` : ''}
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.name}</div>
-        <div style="font-size:10px;color:var(--t2)">×${item.qty} @ ${fmtMoney(item.price)}${item.notes?' · '+item.notes:''}</div>
+        <div style="font-size:10px;color:var(--t2)">×${item.qty} · Paid: ${fmtMoney(item.price)}${item.value?' · Val: '+fmtMoney(item.value):''}${item.notes?' · '+item.notes:''}</div>
       </div>
       <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--gold);white-space:nowrap">${fmtMoney(item.price*item.qty)}</div>
       <button onclick="btRemovePurchaseItem(${idx})" style="background:none;border:none;color:var(--t3);font-size:14px;cursor:pointer;padding:2px">✕</button>
     </div>`).join('');
-  if (totRow) { totRow.style.display = 'block'; document.getElementById('bt-p-total').textContent = fmtMoney(total); }
+  if (totRow) { totRow.style.display='block'; document.getElementById('bt-p-total').textContent = fmtMoney(total); }
 }
 
 function logPurchase() {
   if (!btPurchaseItems.length) { showToast('Add at least one item', 'error'); return; }
-  const txnNotes = (document.getElementById('bt-t-txn-notes')?.value || document.getElementById('bt-p-txn-notes')?.value || '').trim();
+  const txnNotes = (document.getElementById('bt-p-txn-notes')?.value || '').trim();
   const total = btPurchaseItems.reduce((s,i) => s + i.price * i.qty, 0);
   purchases.unshift({
     id: 'pur_' + Date.now(),
@@ -2511,23 +2541,43 @@ function logPurchase() {
   const pp = document.getElementById('bt-p-photo-preview'); if(pp) pp.innerHTML = '📷';
   const pf = document.getElementById('bt-p-photo-file'); if(pf) pf.value = '';
   renderBTLogs();
-  showToast('Purchase logged ✓', 'success');
+  showToast('Purchase completed ✓', 'success');
 }
 
-// ── TRADE: add give/receive items ──
+// ── TRADE ──
 function btAddGiveItem() {
   const id = document.getElementById('bt-t-give-item').value;
   if (!id) { showToast('Select an item to give', 'error'); return; }
-  const item  = inventory.find(i => i.id === id);
-  const price = prices[id] ? parseFloat(prices[id]) : 0;
-  btGiveItems.push({ id, name: item?.short || item?.name || id, price });
+  const item   = inventory.find(i => i.id === id);
+  const stickerPrice = prices[id] ? parseFloat(prices[id]) : 0;
+  // Use sticker price as default but allow user override — store editable price
+  btGiveItems.push({ id, name: item?.short||item?.name||id, price: stickerPrice, stickerPrice });
   renderBTStagedTrade();
   btTradeCalc();
 }
 
-function btRemoveGiveItem(idx) { btGiveItems.splice(idx, 1); renderBTStagedTrade(); btTradeCalc(); }
+function btRemoveGiveItem(idx) { btGiveItems.splice(idx,1); renderBTStagedTrade(); btTradeCalc(); }
 
-function btRecvPhoto(event) {} // removed — photos are per-transaction now
+function btUpdateGivePrice(idx, val) {
+  btGiveItems[idx].price = parseFloat(val) || 0;
+  btTradeCalc();
+}
+
+// Per-item recv credit type
+function btSetRecvCreditType(type) {
+  btRecvCreditType = type;
+  document.getElementById('bt-t-recv-credit-dollar').classList.toggle('active', type==='$');
+  document.getElementById('bt-t-recv-credit-pct').classList.toggle('active', type==='%');
+}
+
+function btUpdateRecvCredit() {
+  // Auto-fill credit = stated value when $ type (convenience)
+  if (btRecvCreditType === '$') {
+    const val = document.getElementById('bt-t-recv-val')?.value;
+    const creditEl = document.getElementById('bt-t-recv-credit');
+    if (creditEl && !creditEl.value) creditEl.value = val;
+  }
+}
 
 function btTradePhoto(event) {
   const file = event.target.files[0]; if (!file) return;
@@ -2541,137 +2591,156 @@ function btTradePhoto(event) {
 }
 
 function btAddRecvItem() {
-  const name  = (document.getElementById('bt-t-recv-name')?.value || '').trim();
-  const val   = parseFloat(document.getElementById('bt-t-recv-val')?.value) || 0;
-  const notes = (document.getElementById('bt-t-recv-notes')?.value || '').trim();
+  const name       = (document.getElementById('bt-t-recv-name')?.value || '').trim();
+  const val        = parseFloat(document.getElementById('bt-t-recv-val')?.value) || 0;
+  const creditRaw  = parseFloat(document.getElementById('bt-t-recv-credit')?.value) || 0;
+  const creditAmt  = btRecvCreditType === '%' ? val * creditRaw / 100 : creditRaw;
+  const notes      = (document.getElementById('bt-t-recv-notes')?.value || '').trim();
   if (!name) { showToast('Received item name required', 'error'); return; }
-  btRecvItems.push({ name, val, notes });
-  document.getElementById('bt-t-recv-name').value  = '';
-  document.getElementById('bt-t-recv-val').value   = '';
-  document.getElementById('bt-t-recv-notes').value = '';
-
+  btRecvItems.push({ name, val, creditAmt, creditRaw, creditType: btRecvCreditType, notes });
+  document.getElementById('bt-t-recv-name').value   = '';
+  document.getElementById('bt-t-recv-val').value    = '';
+  document.getElementById('bt-t-recv-credit').value = '';
+  document.getElementById('bt-t-recv-notes').value  = '';
   renderBTStagedTrade();
   btTradeCalc();
   showToast(`${name} added`, 'success');
 }
 
-function btRemoveRecvItem(idx) { btRecvItems.splice(idx, 1); renderBTStagedTrade(); btTradeCalc(); }
+function btRemoveRecvItem(idx) { btRecvItems.splice(idx,1); renderBTStagedTrade(); btTradeCalc(); }
 
 function renderBTStagedTrade() {
-  // Giving side
+  // Giving side — with editable price field
   const gEl = document.getElementById('bt-t-giving-staged');
   const gTot = document.getElementById('bt-t-give-total-row');
   if (gEl) {
-    const totalGive = btGiveItems.reduce((s,i) => s + i.price, 0);
-    gEl.innerHTML = btGiveItems.map((item, idx) => `
+    const totalGive = btGiveItems.reduce((s,i) => s+i.price, 0);
+    gEl.innerHTML = btGiveItems.map((item,idx) => `
       <div style="display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--border);border-radius:var(--rsm);padding:7px 10px;margin-bottom:5px">
-        <div style="flex:1;font-size:12px;font-weight:600">${item.name}</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--gold)">${fmtMoney(item.price)}</div>
-        <button onclick="btRemoveGiveItem(${idx})" style="background:none;border:none;color:var(--t3);font-size:13px;cursor:pointer">✕</button>
+        <div style="flex:1;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</div>
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+          <span style="font-size:10px;color:var(--t3)">$</span>
+          <input class="disc-input" type="number" value="${item.price}" min="0" style="width:48px !important"
+            oninput="btUpdateGivePrice(${idx},this.value)" title="Your value (sticker: ${fmtMoney(item.stickerPrice)})">
+        </div>
+        <button onclick="btRemoveGiveItem(${idx})" style="background:none;border:none;color:var(--t3);font-size:13px;cursor:pointer;flex-shrink:0">✕</button>
       </div>`).join('');
-    if (gTot) { gTot.style.display = btGiveItems.length ? 'block' : 'none'; if (document.getElementById('bt-t-give-total')) document.getElementById('bt-t-give-total').textContent = fmtMoney(totalGive); }
+    if (gTot) { gTot.style.display = btGiveItems.length?'block':'none'; const el=document.getElementById('bt-t-give-total'); if(el) el.textContent=fmtMoney(totalGive); }
   }
   // Receiving side
   const rEl = document.getElementById('bt-t-receiving-staged');
   const rTot = document.getElementById('bt-t-recv-total-row');
   if (rEl) {
-    const totalRecv = btRecvItems.reduce((s,i) => s + i.val, 0);
-    rEl.innerHTML = btRecvItems.map((item, idx) => `
+    const totalRecv = btRecvItems.reduce((s,i)=>s+i.val,0);
+    rEl.innerHTML = btRecvItems.map((item,idx) => `
       <div style="display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--border);border-radius:var(--rsm);padding:7px 10px;margin-bottom:5px">
-        ${item.photo ? `<img src="${item.photo}" style="width:28px;height:37px;object-fit:cover;border-radius:3px;flex-shrink:0">` : ''}
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.name}</div>
-          ${item.notes ? `<div style="font-size:10px;color:var(--t2)">${item.notes}</div>` : ''}
+          <div style="font-size:10px;color:var(--t2)">Val: ${fmtMoney(item.val)} · Credit: ${fmtMoney(item.creditAmt)}${item.notes?' · '+item.notes:''}</div>
         </div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--text)">${fmtMoney(item.val)}</div>
-        <button onclick="btRemoveRecvItem(${idx})" style="background:none;border:none;color:var(--t3);font-size:13px;cursor:pointer">✕</button>
+        <button onclick="btRemoveRecvItem(${idx})" style="background:none;border:none;color:var(--t3);font-size:13px;cursor:pointer;flex-shrink:0">✕</button>
       </div>`).join('');
-    if (rTot) { rTot.style.display = btRecvItems.length ? 'block' : 'none'; if (document.getElementById('bt-t-recv-total')) document.getElementById('bt-t-recv-total').textContent = fmtMoney(totalRecv); }
+    if (rTot) { rTot.style.display=btRecvItems.length?'block':'none'; const el=document.getElementById('bt-t-recv-total'); if(el) el.textContent=fmtMoney(totalRecv); }
   }
-}
-
-function btSetCreditType(type) {
-  btCreditType = type;
-  document.getElementById('bt-t-credit-dollar').classList.toggle('active', type === '$');
-  document.getElementById('bt-t-credit-pct').classList.toggle('active', type === '%');
-  btTradeCalc();
 }
 
 function btSelectPayment(method) {
   btSelectedPayment = method;
-  document.querySelectorAll('#bt-t-payment-row .pay-method-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll('#bt-t-payment-row .pay-method-btn').forEach(b=>b.classList.remove('selected'));
   event.target.closest('.pay-method-btn').classList.add('selected');
   document.getElementById('bt-t-payment-selected').textContent = `Payment method: ${method}`;
 }
 
 function btTradeCalc() {
-  const totalGive = btGiveItems.reduce((s,i) => s + i.price, 0);
-  const totalRecv = btRecvItems.reduce((s,i) => s + i.val, 0);
-  const creditV   = parseFloat(document.getElementById('bt-t-credit-val')?.value) || 0;
-  const creditAmt = btCreditType === '%' ? totalRecv * creditV / 100 : creditV;
-  const balance   = Math.max(0, totalGive - creditAmt);
+  const totalGive  = btGiveItems.reduce((s,i)=>s+i.price,0);
+  const totalRecv  = btRecvItems.reduce((s,i)=>s+i.val,0);
+  const totalCredit= btRecvItems.reduce((s,i)=>s+i.creditAmt,0);
+  const balance    = Math.max(0, totalGive - totalCredit);
 
   const summary = document.getElementById('bt-trade-summary');
   const payRow  = document.getElementById('bt-t-payment-row');
-  if (btGiveItems.length || btRecvItems.length || creditAmt) {
-    if (summary) summary.style.display = 'block';
-    if (document.getElementById('bt-ts-give-val')) document.getElementById('bt-ts-give-val').textContent = fmtMoney(totalGive);
-    if (document.getElementById('bt-ts-recv-val')) document.getElementById('bt-ts-recv-val').textContent = fmtMoney(totalRecv);
-    if (document.getElementById('bt-ts-credit'))   document.getElementById('bt-ts-credit').textContent   = fmtMoney(creditAmt);
-    if (document.getElementById('bt-ts-balance'))  document.getElementById('bt-ts-balance').textContent  = fmtMoney(balance);
-    if (payRow) payRow.style.display = balance > 0 ? 'block' : 'none';
+  if (btGiveItems.length || btRecvItems.length) {
+    if(summary) summary.style.display='block';
+    const tsGive=document.getElementById('bt-ts-give-val'); if(tsGive) tsGive.textContent=fmtMoney(totalGive);
+    const tsRecv=document.getElementById('bt-ts-recv-val'); if(tsRecv) tsRecv.textContent=fmtMoney(totalRecv);
+    const tsCred=document.getElementById('bt-ts-credit');   if(tsCred) tsCred.textContent=fmtMoney(totalCredit);
+    const tsBal =document.getElementById('bt-ts-balance');  if(tsBal)  tsBal.textContent=fmtMoney(balance);
+    if(payRow) payRow.style.display=balance>0?'block':'none';
   } else {
-    if (summary) summary.style.display = 'none';
-    if (payRow)  payRow.style.display  = 'none';
+    if(summary) summary.style.display='none';
+    if(payRow)  payRow.style.display='none';
   }
 }
 
 function logTrade() {
-  if (!btGiveItems.length)  { showToast('Add at least one item you are giving', 'error'); return; }
-  if (!btRecvItems.length)  { showToast('Add at least one item you are receiving', 'error'); return; }
-  const creditV   = parseFloat(document.getElementById('bt-t-credit-val')?.value) || 0;
-  const totalGive = btGiveItems.reduce((s,i) => s + i.price, 0);
-  const totalRecv = btRecvItems.reduce((s,i) => s + i.val, 0);
-  const creditAmt = btCreditType === '%' ? totalRecv * creditV / 100 : creditV;
-  const balance   = Math.max(0, totalGive - creditAmt);
-  const notes     = (document.getElementById('bt-t-notes')?.value || '').trim();
+  if (!btGiveItems.length) { showToast('Add at least one item you are giving', 'error'); return; }
+  if (!btRecvItems.length) { showToast('Add at least one item you are receiving', 'error'); return; }
+  const totalGive   = btGiveItems.reduce((s,i)=>s+i.price,0);
+  const totalRecv   = btRecvItems.reduce((s,i)=>s+i.val,0);
+  const totalCredit = btRecvItems.reduce((s,i)=>s+i.creditAmt,0);
+  const balance     = Math.max(0, totalGive - totalCredit);
+  const notes       = (document.getElementById('bt-t-notes')?.value||'').trim();
 
   trades.unshift({
     id: 'trd_' + Date.now(),
     timestamp: new Date().toISOString(),
     gaveItems:  [...btGiveItems],
     recvItems:  [...btRecvItems],
-    totalGive, totalRecv, creditType: btCreditType,
-    creditVal: creditV, creditAmt, balance,
+    totalGive, totalRecv, totalCredit, balance,
     paymentMethod: btSelectedPayment, notes,
     photo: btTradePhotoData
   });
 
-  // Deduct each given item from inventory
   btGiveItems.forEach(g => {
-    const inv = inventory.find(i => i.id === g.id);
-    if (inv) inv.qty = Math.max(0, inv.qty - 1);
+    const inv = inventory.find(i=>i.id===g.id);
+    if(inv) inv.qty = Math.max(0, inv.qty-1);
   });
 
   save();
-  btGiveItems = []; btRecvItems = []; btSelectedPayment = ''; btTradePhotoData = '';
-  const tpp = document.getElementById('bt-t-photo-preview'); if(tpp) tpp.innerHTML = '📷';
-  const tpf = document.getElementById('bt-t-photo-file'); if(tpf) tpf.value = '';
-  if (document.getElementById('bt-t-credit-val')) document.getElementById('bt-t-credit-val').value = '';
-  if (document.getElementById('bt-t-notes')) document.getElementById('bt-t-notes').value = '';
-  if (document.getElementById('bt-t-payment-selected')) document.getElementById('bt-t-payment-selected').textContent = '';
-  document.querySelectorAll('#bt-t-payment-row .pay-method-btn').forEach(b => b.classList.remove('selected'));
-  renderBTStagedTrade();
-  btTradeCalc();
-  renderBTLogs();
-  renderInventory();
-  renderPOS();
-  populateBTGiveSelect();
-  showToast('Trade logged ✓', 'success');
+  btGiveItems=[]; btRecvItems=[]; btSelectedPayment=''; btTradePhotoData='';
+  const tpp=document.getElementById('bt-t-photo-preview'); if(tpp) tpp.innerHTML='📷';
+  const tpf=document.getElementById('bt-t-photo-file'); if(tpf) tpf.value='';
+  if(document.getElementById('bt-t-notes')) document.getElementById('bt-t-notes').value='';
+  if(document.getElementById('bt-t-payment-selected')) document.getElementById('bt-t-payment-selected').textContent='';
+  document.querySelectorAll('#bt-t-payment-row .pay-method-btn').forEach(b=>b.classList.remove('selected'));
+  renderBTStagedTrade(); btTradeCalc(); renderBTLogs(); renderInventory(); renderPOS(); populateBTGiveSelect();
+  showToast('Trade completed ✓', 'success');
+}
+
+// ── DELETE trade/purchase ──
+function promptBTDelete(id, type) {
+  pendingBTDeleteId = id;
+  pendingBTDeleteType = type;
+  const overlay = document.getElementById('btConfirmOverlay');
+  document.getElementById('btConfirmTitle').textContent = type==='trade' ? 'Delete Trade?' : 'Delete Purchase?';
+  document.getElementById('btConfirmSub').textContent = type==='trade'
+    ? 'Inventory quantities for items you gave will be restored. Cannot be undone.'
+    : 'This purchase record will be removed. Cannot be undone.';
+  overlay.classList.add('open');
+}
+
+function confirmBTDelete() {
+  if (pendingBTDeleteType === 'trade') {
+    const t = trades.find(t=>t.id===pendingBTDeleteId);
+    if (t) {
+      // Restore inventory for each given item
+      (t.gaveItems||[]).forEach(g => {
+        const inv = inventory.find(i=>i.id===g.id);
+        if(inv) inv.qty += 1;
+      });
+      trades = trades.filter(t=>t.id!==pendingBTDeleteId);
+    }
+  } else {
+    purchases = purchases.filter(p=>p.id!==pendingBTDeleteId);
+  }
+  save();
+  renderBTLogs(); renderInventory(); renderPOS();
+  document.getElementById('btConfirmOverlay').classList.remove('open');
+  showToast('Deleted ✓', 'success');
+  pendingBTDeleteId = null; pendingBTDeleteType = null;
 }
 
 function renderBTLogs() {
-  // Purchase log
   const pel = document.getElementById('bt-purchase-log');
   if (pel) {
     if (!purchases.length) {
@@ -2680,26 +2749,28 @@ function renderBTLogs() {
       pel.innerHTML = purchases.map(p => {
         const dt = new Date(p.timestamp);
         const dateStr = dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-        const itemLines = (p.items||[{name:p.name,qty:p.qty,price:p.price,notes:p.notes,photo:p.photo}]).map(i =>
-          `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-            ${i.photo?`<img src="${i.photo}" style="width:24px;height:32px;object-fit:cover;border-radius:3px;flex-shrink:0">`:''}
-            <span>${i.name} ×${i.qty} @ ${fmtMoney(i.price)}${i.notes?' · '+i.notes:''}</span>
+        const items = p.items||[{name:p.name,qty:p.qty,price:p.price,value:0,notes:p.notes}];
+        const itemLines = items.map(i =>
+          `<div style="font-size:11px;color:var(--t2);padding:2px 0">
+            ${i.name} ×${i.qty} · Paid: ${fmtMoney(i.price)}${i.value?' · Val: '+fmtMoney(i.value):''}${i.notes?' · '+i.notes:''}
           </div>`).join('');
         return `<div class="bt-log-entry">
           <div class="bt-log-top">
-            <span class="bt-log-type purchase">Purchase</span>
+            <div><span class="bt-log-type purchase">Purchase</span></div>
             <div class="bt-log-amount purchase">-${fmtMoney(p.total||p.price)}</div>
           </div>
           ${p.photo?`<img src="${p.photo}" style="width:60px;height:80px;object-fit:cover;border-radius:6px;margin:6px 0;display:block">`:''}
-          <div class="bt-log-detail" style="margin-top:6px">${itemLines}</div>
-          ${p.notes?`<div class="bt-log-detail" style="margin-top:4px;color:var(--t3)">${p.notes}</div>`:''}
-          <div class="bt-log-date">${dateStr}</div>
+          <div style="margin-top:6px">${itemLines}</div>
+          ${p.notes?`<div style="font-size:11px;color:var(--t3);margin-top:4px">${p.notes}</div>`:''}
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+            <div class="bt-log-date">${dateStr}</div>
+            <button class="delete-sale-btn" onclick="promptBTDelete('${p.id}','purchase')">🗑 Delete</button>
+          </div>
         </div>`;
       }).join('');
     }
   }
 
-  // Trade log
   const tel = document.getElementById('bt-trade-log');
   if (tel) {
     if (!trades.length) {
@@ -2708,22 +2779,26 @@ function renderBTLogs() {
       tel.innerHTML = trades.map(t => {
         const dt = new Date(t.timestamp);
         const dateStr = dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-        const gaveLines = (t.gaveItems||[{name:t.gaveName,price:t.gavePrice}]).map(i=>`${i.name} (${fmtMoney(i.price)})`).join(', ');
-        const recvLines = (t.recvItems||[{name:t.receivedName,val:t.receivedVal}]).map(i=>`${i.name}${i.val?' (val: '+fmtMoney(i.val)+')':''}`).join(', ');
-        const creditStr = t.creditType==='%' ? `${t.creditVal}% of ${fmtMoney(t.totalRecv||t.receivedVal)} = ${fmtMoney(t.creditAmt)}` : fmtMoney(t.creditAmt);
+        const gave = (t.gaveItems||[{name:t.gaveName,price:t.gavePrice}]);
+        const recv = (t.recvItems||[{name:t.receivedName,val:t.receivedVal,creditAmt:t.creditAmt}]);
+        const gaveLines = gave.map(g=>`${g.name} — ${fmtMoney(g.price)}`).join('<br>');
+        const recvLines = recv.map(r=>`${r.name}${r.val?' (val: '+fmtMoney(r.val)+')':''} · Credit: ${fmtMoney(r.creditAmt||0)}`).join('<br>');
         return `<div class="bt-log-entry">
           <div class="bt-log-top">
-            <span class="bt-log-type trade">Trade</span>
-            <div class="bt-log-amount trade">${t.balance > 0 ? '+'+fmtMoney(t.balance) : 'Even'}</div>
+            <div><span class="bt-log-type trade">Trade</span></div>
+            <div class="bt-log-amount trade">${(t.balance||0)>0?'+'+fmtMoney(t.balance):'Even'}</div>
           </div>
           ${t.photo?`<img src="${t.photo}" style="width:60px;height:80px;object-fit:cover;border-radius:6px;margin:6px 0;display:block">`:''}
           <div class="bt-log-detail" style="margin-top:6px">
-            <strong style="color:var(--text)">Gave:</strong> ${gaveLines}<br>
-            <strong style="color:var(--text)">Received:</strong> ${recvLines}<br>
-            Credit: ${creditStr}${t.balance>0?' · Cash due: '+fmtMoney(t.balance)+(t.paymentMethod?' via '+t.paymentMethod:''):''}
+            <strong style="color:var(--text)">Gave:</strong><br>${gaveLines}<br>
+            <strong style="color:var(--text);margin-top:4px;display:block">Received:</strong>${recvLines}
+            ${t.balance>0?`<br>Cash due: ${fmtMoney(t.balance)}${t.paymentMethod?' via '+t.paymentMethod:''}`:''}
             ${t.notes?'<br>'+t.notes:''}
           </div>
-          <div class="bt-log-date">${dateStr}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+            <div class="bt-log-date">${dateStr}</div>
+            <button class="delete-sale-btn" onclick="promptBTDelete('${t.id}','trade')">🗑 Delete</button>
+          </div>
         </div>`;
       }).join('');
     }
@@ -2733,27 +2808,94 @@ function renderBTLogs() {
 // Combined CSV export
 function exportBuyTradeCSV() {
   if (!purchases.length && !trades.length) { showToast('No activity to export', 'error'); return; }
-  const rows = [['Type','Date','Time','Item','Qty','Price/Value','Notes','Total','Credit Given','Balance Due','Payment','Transaction ID']];
+  const rows = [['Type','Date','Time','Item','Qty','Value','Price Paid','Notes','Total','Credit Given','Balance Due','Payment','Transaction ID']];
   purchases.forEach(p => {
-    const dt = new Date(p.timestamp);
-    const d = dt.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'});
-    const t = dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-    const items = p.items||[{name:p.name,qty:p.qty,price:p.price,notes:p.notes}];
-    items.forEach((item,idx) => {
-      rows.push(['Purchase',d,t,item.name,item.qty,Math.round(item.price),item.notes||'',idx===0?Math.round(p.total||p.price):'','','','',p.id]);
+    const dt=new Date(p.timestamp);
+    const d=dt.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'});
+    const t=dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    const items=p.items||[{name:p.name,qty:p.qty,price:p.price,value:0,notes:p.notes}];
+    items.forEach((item,idx)=>{
+      rows.push(['Purchase',d,t,item.name,item.qty,Math.round(item.value||0),Math.round(item.price),item.notes||'',idx===0?Math.round(p.total||p.price):'','','','',p.id]);
     });
   });
-  trades.forEach(t => {
-    const dt = new Date(t.timestamp);
-    const d = dt.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'});
-    const tm = dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-    const gave = (t.gaveItems||[{name:t.gaveName,price:t.gavePrice}]);
-    const recv = (t.recvItems||[{name:t.receivedName,val:t.receivedVal}]);
-    gave.forEach((g,idx) => rows.push(['Trade - Gave',d,tm,g.name,1,Math.round(g.price),'',idx===0?Math.round(t.totalGive||t.gavePrice):'','','','',t.id]));
-    recv.forEach((r,idx) => rows.push(['Trade - Received',d,tm,r.name,1,Math.round(r.val),r.notes||'',idx===0?Math.round(t.totalRecv||t.receivedVal):'',idx===0?Math.round(t.creditAmt):'',idx===0?Math.round(t.balance):'',idx===0?t.paymentMethod||'':'',t.id]));
+  trades.forEach(t=>{
+    const dt=new Date(t.timestamp);
+    const d=dt.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'});
+    const tm=dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    const gave=t.gaveItems||[{name:t.gaveName,price:t.gavePrice}];
+    const recv=t.recvItems||[{name:t.receivedName,val:t.receivedVal,creditAmt:t.creditAmt}];
+    gave.forEach((g,idx)=>rows.push(['Trade - Gave',d,tm,g.name,1,'',Math.round(g.price),'',idx===0?Math.round(t.totalGive||t.gavePrice):'','','','',t.id]));
+    recv.forEach((r,idx)=>rows.push(['Trade - Received',d,tm,r.name,1,Math.round(r.val||0),'',r.notes||'',idx===0?Math.round(t.totalRecv||t.receivedVal):'',idx===0?Math.round(r.creditAmt||0):'',idx===0?Math.round(t.balance||0):'',idx===0?t.paymentMethod||'':'',t.id]));
   });
   downloadCSV(rows, `kitchen_tcg_activity_${csvDateStamp()}.csv`);
   showToast('Activity exported ✓', 'success');
+}
+
+// ── END SHOW ──
+function promptEndShow() {
+  document.getElementById('endShowProgress').textContent = '';
+  document.getElementById('endShowOverlay').classList.add('open');
+}
+
+async function confirmEndShow() {
+  const btn = document.getElementById('endShowConfirmBtn');
+  const prog = document.getElementById('endShowProgress');
+  btn.disabled = true;
+  const url = getSheetsUrl();
+  const errors = [];
+
+  if (!url) {
+    prog.innerHTML = '<span style="color:var(--red)">No Sheets URL configured — cannot sync. Go to Setup → Google Sheets Sync first.</span>';
+    // Offer clear without sync
+    prog.innerHTML += '<br><button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="clearWithoutSync()">Clear logs without syncing</button>';
+    btn.disabled = false;
+    return;
+  }
+
+  prog.innerHTML = '<span style="color:var(--t2)">Syncing sales…</span>';
+  try { await syncSalesToSheets(true); prog.innerHTML += '<br>✓ Sales synced'; }
+  catch(e) { errors.push('Sales: ' + e.message); }
+
+  prog.innerHTML += '<br><span style="color:var(--t2)">Syncing buy/trade…</span>';
+  try { await syncBuyTradeToSheets(true); prog.innerHTML += '<br>✓ Buy/Trade synced'; }
+  catch(e) { errors.push('Buy/Trade: ' + e.message); }
+
+  prog.innerHTML += '<br><span style="color:var(--t2)">Pushing inventory snapshot…</span>';
+  try { await syncInventorySnapshotToSheets(true); prog.innerHTML += '<br>✓ Inventory snapshot synced'; }
+  catch(e) { errors.push('Inventory: ' + e.message); }
+
+  if (errors.length > 0) {
+    prog.innerHTML += `<br><span style="color:var(--red)">⚠ Errors:<br>${errors.join('<br>')}</span>`;
+    prog.innerHTML += `<br><div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-ghost btn-sm" onclick="clearWithoutSync()">Clear anyway</button><button class="btn btn-ghost btn-sm" onclick="document.getElementById('endShowOverlay').classList.remove('open')">Keep logs &amp; fix errors</button></div>`;
+    btn.disabled = false;
+    return;
+  }
+
+  // All succeeded — clear everything
+  clearAllLogs();
+  document.getElementById('endShowOverlay').classList.remove('open');
+  showToast('Show ended — all logs cleared ✓', 'success');
+  btn.disabled = false;
+}
+
+function clearWithoutSync() {
+  if (confirm('Clear all transaction logs without syncing to Google Sheets? This cannot be undone.')) {
+    clearAllLogs();
+    document.getElementById('endShowOverlay').classList.remove('open');
+    showToast('Logs cleared (not synced)', 'success');
+  }
+}
+
+function clearAllLogs() {
+  sales = [];
+  purchases = [];
+  trades = [];
+  // Reset sale counters
+  Object.keys(localStorage).filter(k=>k.startsWith('ktcg_salecount_')).forEach(k=>localStorage.removeItem(k));
+  save();
+  renderLog();
+  renderBTLogs();
+  updateStats();
 }
 
 // ── HELP MODAL ──
@@ -2792,9 +2934,9 @@ async function postToSheets(action, payload) {
   return json;
 }
 
-async function syncSalesToSheets() {
-  if (!sales.length) { showSheetsMsg('logSheetsMsg', '⚠ No sales to sync', true); return; }
-  showSheetsMsg('logSheetsMsg', 'Syncing sales…', false);
+async function syncSalesToSheets(silent=false) {
+  if (!sales.length) { if(!silent) showSheetsMsg('logSheetsMsg', '⚠ No sales to sync', true); return; }
+  if(!silent) showSheetsMsg('logSheetsMsg', 'Syncing sales…', false);
   try {
     // Build rows matching Sales Log sheet columns
     const rows = [];
@@ -2817,19 +2959,20 @@ async function syncSalesToSheets() {
       });
     });
     const result = await postToSheets('appendSales', { rows });
-    showSheetsMsg('logSheetsMsg', `✓ ${result.appended} rows synced to Sales Log sheet`, false);
-    showToast('Sales synced to Sheet ✓', 'success');
+    if(!silent) { showSheetsMsg('logSheetsMsg', `✓ ${result.appended} rows synced to Sales Log sheet`, false); showToast('Sales synced to Sheet ✓', 'success'); }
   } catch(e) {
-    showSheetsMsg('logSheetsMsg', '✗ ' + e.message, true);
+    if(!silent) showSheetsMsg('logSheetsMsg', '✗ ' + e.message, true);
+    if(silent) throw e;
   }
 }
 
-async function syncInventorySnapshotToSheets() {
-  if (!inventory.length) { showToast('No inventory to sync', 'error'); return; }
-  showSheetsMsg('sheetsMsg', 'Pushing inventory snapshot…', false);
-  showSheetsMsg('logSheetsMsg', 'Pushing inventory snapshot…', false);
+async function syncInventorySnapshotToSheets(silent=false) {
+  if (!inventory.length) { if(!silent) showToast('No inventory to sync', 'error'); return; }
+  if(!silent) { showSheetsMsg('sheetsMsg', 'Pushing inventory snapshot…', false); showSheetsMsg('logSheetsMsg', 'Pushing inventory snapshot…', false); }
   try {
+    const snapDate = new Date().toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'});
     const rows = applySortOrder(inventory).map(item => [
+      snapDate,
       item.short || item.name,
       item.name,
       item.set || '',
@@ -2847,9 +2990,9 @@ async function syncInventorySnapshotToSheets() {
   }
 }
 
-async function syncBuyTradeToSheets() {
-  if (!purchases.length && !trades.length) { showSheetsMsg('btSheetsMsg', '⚠ No activity to sync', true); return; }
-  showSheetsMsg('btSheetsMsg', 'Syncing buy/trade activity…', false);
+async function syncBuyTradeToSheets(silent=false) {
+  if (!purchases.length && !trades.length) { if(!silent) showSheetsMsg('btSheetsMsg', '⚠ No activity to sync', true); return; }
+  if(!silent) showSheetsMsg('btSheetsMsg', 'Syncing buy/trade activity…', false);
   try {
     const rows = [];
     purchases.forEach(p => {
@@ -2877,10 +3020,10 @@ async function syncBuyTradeToSheets() {
       recv.forEach((r,idx) => rows.push(['Trade - Received',date,time,r.name,1,Math.round(r.val),r.notes||'',idx===0?Math.round(t.totalRecv||t.receivedVal):'',idx===0?Math.round(t.creditAmt):'',idx===0?Math.round(t.balance):'',idx===0?t.paymentMethod||'':'',t.id]));
     });
     const result = await postToSheets('appendBuyTrade', { rows });
-    showSheetsMsg('btSheetsMsg', `✓ ${result.appended} rows synced to Buy-Trade Log`, false);
-    showToast('Activity synced to Sheet ✓', 'success');
+    if(!silent) { showSheetsMsg('btSheetsMsg', `✓ ${result.appended} rows synced to Buy-Trade Log`, false); showToast('Activity synced to Sheet ✓', 'success'); }
   } catch(e) {
-    showSheetsMsg('btSheetsMsg', '✗ ' + e.message, true);
+    if(!silent) showSheetsMsg('btSheetsMsg', '✗ ' + e.message, true);
+    if(silent) throw e;
   }
 }
 
